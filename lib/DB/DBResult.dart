@@ -847,5 +847,98 @@ class DBService {
   Future<DBResult> cancelPromo({required int promoId, int userId = 0}) =>
       _request('DELETE', ENV.PROMOS_URL, {'promo_id': promoId, 'user_id': userId});
 
+  // ── PENDING ITEMS ───────────────────────────────────────────────────────
+
+  Future<DBResult> fetchPendingItems() async {
+    try {
+      final uri = Uri.parse(ENV.PENDING_ITEMS_URL).replace(
+        queryParameters: {'action': 'fetch'},
+      );
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 30));
+
+      final ct = response.headers['content-type'] ?? '';
+      if (!ct.contains('application/json')) {
+        return DBResult(
+          success: false,
+          message: 'Pending items: unexpected server response (HTTP ${response.statusCode}).',
+        );
+      }
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return DBResult(
+        success: decoded['success'] == true,
+        message: decoded['message'] ?? '',
+        data: decoded,
+      );
+    } on http.ClientException catch (e) {
+      return DBResult(success: false, message: 'Cannot reach pending items API. (${e.message})');
+    } on FormatException {
+      return DBResult(success: false, message: 'Pending items returned invalid data.');
+    } catch (e) {
+      return DBResult(success: false, message: 'Pending items error: $e');
+    }
+  }
+
+  Future<DBResult> generatePendingCode() async {
+    try {
+      final uri = Uri.parse(ENV.PENDING_ITEMS_URL).replace(
+        queryParameters: {'action': 'generate_code'},
+      );
+
+      final response = await http.get(uri).timeout(const Duration(seconds: 30));
+
+      final ct = response.headers['content-type'] ?? '';
+      if (!ct.contains('application/json')) {
+        return DBResult(
+          success: false,
+          message: 'Code generation: unexpected server response (HTTP ${response.statusCode}).',
+        );
+      }
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return DBResult(
+        success: decoded['success'] == true,
+        message: decoded['message'] ?? '',
+        data: decoded,
+      );
+    } catch (e) {
+      return DBResult(success: false, message: 'Code generation error: $e');
+    }
+  }
+
+  Future<DBResult> assignPendingItem({
+    required int pendingId,
+    required String productCode,
+  }) async {
+    try {
+      // pending_items.php expects form-encoded POST, not JSON
+      final response = await http.post(
+        Uri.parse(ENV.PENDING_ITEMS_URL),
+        body: {
+          'action': 'assign',
+          'pending_id': pendingId.toString(),
+          'product_code': productCode,
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      final ct = response.headers['content-type'] ?? '';
+      if (!ct.contains('application/json')) {
+        return DBResult(
+          success: false,
+          message: 'Assign pending: unexpected server response (HTTP ${response.statusCode}).',
+        );
+      }
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return DBResult(
+        success: decoded['success'] == true,
+        message: decoded['message'] ?? '',
+        data: decoded,
+      );
+    } catch (e) {
+      return DBResult(success: false, message: 'Assign pending error: $e');
+    }
+  }
 }
 

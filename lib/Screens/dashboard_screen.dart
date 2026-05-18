@@ -260,7 +260,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            "Three E's",
+                            "Salangi Ko Pu",
                             style: TextStyle(
                               color: _textHi,
                               fontWeight: FontWeight.w700,
@@ -353,6 +353,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _androidLayout() {
     final destinations = _visibleDestinations;
+    // Show max 4 primary items + "More" tab on mobile
+    const maxPrimary = 4;
+    final primaryDests = destinations.length <= maxPrimary
+        ? destinations
+        : destinations.sublist(0, maxPrimary);
+    final overflowDests = destinations.length > maxPrimary
+        ? destinations.sublist(maxPrimary)
+        : <dynamic>[];
+
+    // Check if selected index is in overflow
+    final effectiveNavIndex = _selectedIndex < maxPrimary
+        ? _selectedIndex
+        : maxPrimary; // "More" tab index
 
     return Scaffold(
       backgroundColor: _bg,
@@ -364,7 +377,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Icon(Icons.storefront_rounded, color: _blue, size: 22),
             const SizedBox(width: 10),
             Text(
-              "Three E's",
+              "Salangi ko Pu",
               style: TextStyle(
                   color: _textHi, fontWeight: FontWeight.w700, fontSize: 16),
             ),
@@ -373,13 +386,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              backgroundColor: _blue.withOpacity(0.15),
-              radius: 18,
-              child: Text(
-                _initials,
-                style: TextStyle(
-                    color: _blue, fontSize: 13, fontWeight: FontWeight.bold),
+            child: GestureDetector(
+              onTap: _showUserMenu,
+              child: CircleAvatar(
+                backgroundColor: _blue.withOpacity(0.15),
+                radius: 18,
+                child: Text(
+                  _initials,
+                  style: TextStyle(
+                      color: _blue, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
               ),
             ),
           ),
@@ -391,24 +407,90 @@ class _DashboardScreenState extends State<DashboardScreen> {
           : NavigationBar(
         backgroundColor: _surface,
         indicatorColor: _blue.withOpacity(0.2),
-        selectedIndex: _selectedIndex >= destinations.length
-            ? 0
-            : _selectedIndex,
-        onDestinationSelected: (i) => setState(() => _selectedIndex = i),
-        destinations: destinations
-            .map(
-              (d) =>
-              NavigationDestination(
-                icon: Icon(d.icon, color: _textLo),
-                selectedIcon: Icon(d.icon, color: _blue),
-                label: d.label,
+        selectedIndex: effectiveNavIndex,
+        onDestinationSelected: (i) {
+          if (overflowDests.isNotEmpty && i == maxPrimary) {
+            // Show "More" bottom sheet
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: _surface,
+              shape: const RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
               ),
-        )
-            .toList(),
+              builder: (_) => SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+                      child: Text(
+                        'More',
+                        style: TextStyle(
+                          color: _textHi,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    ...overflowDests.asMap().entries.map((entry) {
+                      final realIndex = maxPrimary + entry.key;
+                      final d = entry.value;
+                      final isSelected = _selectedIndex == realIndex;
+                      return ListTile(
+                        leading: Icon(
+                          d.icon,
+                          color: isSelected ? _blue : _textLo,
+                        ),
+                        title: Text(
+                          d.label,
+                          style: TextStyle(
+                            color: isSelected ? _blue : _textHi,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_rounded, color: _blue, size: 18)
+                            : null,
+                        onTap: () {
+                          setState(() => _selectedIndex = realIndex);
+                          Navigator.pop(context);
+                        },
+                      );
+                    }),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          } else {
+            setState(() => _selectedIndex = i);
+          }
+        },
+        destinations: [
+          ...primaryDests.map(
+                (d) => NavigationDestination(
+              icon: Icon(d.icon, color: _textLo),
+              selectedIcon: Icon(d.icon, color: _blue),
+              label: d.label,
+            ),
+          ),
+          if (overflowDests.isNotEmpty)
+            NavigationDestination(
+              icon: Icon(
+                Icons.more_horiz_rounded,
+                color: _selectedIndex >= maxPrimary ? _blue : _textLo,
+              ),
+              selectedIcon:
+              Icon(Icons.more_horiz_rounded, color: _blue),
+              label: 'More',
+            ),
+        ],
       ),
     );
   }
-
   Widget _userTile() {
     final name = widget.user?['full_name'] as String? ?? 'User';
     final email = widget.user?['email'] as String? ?? '';

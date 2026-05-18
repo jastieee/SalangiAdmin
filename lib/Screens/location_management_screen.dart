@@ -248,27 +248,31 @@ class _LocationManagementScreenState extends State<LocationManagementScreen>
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-            child: Row(
+           child:  Row(
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Store & Warehouse Management',
-                      style: TextStyle(
-                        color: _textHi,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
+                Expanded(                              // ← ADD THIS
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Store & Warehouse Management',
+                        style: TextStyle(
+                          color: _textHi,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        overflow: TextOverflow.ellipsis,   // ← ADD THIS
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Add and manage store/warehouse names and addresses',
-                      style: TextStyle(color: _textLo, fontSize: 12),
-                    ),
-                  ],
-                ),
-                const Spacer(),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Add and manage store/warehouse names and addresses',
+                        style: TextStyle(color: _textLo, fontSize: 12),
+                        overflow: TextOverflow.ellipsis,   // ← ADD THIS
+                      ),
+                    ],
+                  ),
+                ),                                     // ← CLOSE Expanded
+                // const Spacer(),  ← REMOVE THIS (Expanded replaces it)
                 IconButton(
                   tooltip: 'Refresh',
                   onPressed: _load,

@@ -1826,26 +1826,48 @@ class _ModulePermissionPickerDialogState
                     style: TextStyle(color: t.textLo, fontSize: 12),
                   ),
                   const Spacer(),
-                  TextButton(
-                    onPressed: () => setState(() {
-                      _showSelectedOnly = !_showSelectedOnly;
-                    }),
-                    child: Text(
-                      _showSelectedOnly ? 'Show All' : 'Selected Only',
-                      style: TextStyle(color: t.blue),
+                  Flexible(
+                    child: Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: 0,
+                      runSpacing: 0,
+                      children: [
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => setState(() {
+                            _showSelectedOnly = !_showSelectedOnly;
+                          }),
+                          child: Text(
+                            _showSelectedOnly ? 'Show All' : 'Selected Only',
+                            style: TextStyle(color: t.blue, fontSize: 12),
+                          ),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => _setAll(true),
+                          child: Text('Allow Filtered',
+                              style: TextStyle(color: t.green, fontSize: 12)),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          onPressed: () => _setAll(false),
+                          child: Text('Clear Filtered',
+                              style: TextStyle(color: t.red, fontSize: 12)),
+                        ),
+                      ],
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => _setAll(true),
-                    child: Text('Allow Filtered', style: TextStyle(color: t.green)),
-                  ),
-                  TextButton(
-                    onPressed: () => _setAll(false),
-                    child: Text('Clear Filtered', style: TextStyle(color: t.red)),
                   ),
                 ],
               ),
-
               const SizedBox(height: 8),
 
               Expanded(

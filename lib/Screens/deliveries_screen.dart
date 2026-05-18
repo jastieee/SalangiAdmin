@@ -926,55 +926,66 @@ class _DeliveriesScreenState extends State<DeliveriesScreen> {
 
   Widget _buildHeader() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text(
-                'Deliveries',
-                style: TextStyle(
-                  color: _textHi,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Deliveries',
+                      style: TextStyle(
+                        color: _textHi,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Delivery receiving records with supplier, SI, DR, PO, warehouse, and total cost.',
+                      style: TextStyle(color: _textLo, fontSize: 12),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                'Delivery receiving records with supplier, SI, DR, PO, warehouse, and total cost.',
-                style: TextStyle(color: _textLo, fontSize: 12),
+              IconButton(
+                tooltip: 'Refresh',
+                icon: Icon(Icons.refresh_rounded, color: _textLo),
+                onPressed: () => _load(page: _page),
               ),
             ],
           ),
-          const Spacer(),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _green,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: _showExportOptions,
-            icon: const Icon(Icons.file_download_rounded, size: 16),
-            label: const Text('Export'),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: 'Refresh',
-            icon: Icon(Icons.refresh_rounded, color: _textLo),
-            onPressed: () => _load(page: _page),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _green,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: _showExportOptions,
+                icon: const Icon(Icons.file_download_rounded, size: 16),
+                label: const Text('Export'),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
-
   Widget _buildStats() {
     final totalDeliveries = _toInt(_stats['total_deliveries']);
     final totalAmount = _toDouble(_stats['total_amount']);
     final totalItems = _toInt(_stats['total_items']);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 4),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
       child: Wrap(
         spacing: 10,
         runSpacing: 10,
@@ -1004,14 +1015,14 @@ class _DeliveriesScreenState extends State<DeliveriesScreen> {
 
   Widget _buildFilterBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       child: Wrap(
         spacing: 10,
         runSpacing: 10,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          SizedBox(
-            width: 280,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 280),
             child: TextField(
               controller: _searchCtrl,
               style: TextStyle(color: _textHi, fontSize: 13),
@@ -1063,8 +1074,8 @@ class _DeliveriesScreenState extends State<DeliveriesScreen> {
                 _load();
               },
             ),
-          SizedBox(
-            width: 260,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 260),
             child: TextField(
               controller: _supplierCtrl,
               style: TextStyle(color: _textHi, fontSize: 13),
@@ -1428,7 +1439,7 @@ class _DeliveriesScreenState extends State<DeliveriesScreen> {
     if (totalPages <= 1) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [

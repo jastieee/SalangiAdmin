@@ -2501,6 +2501,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
       valueListenable: themeNotifier,
       builder: (_, __, ___) {
         final t = themeNotifier.theme;
+        final screenWidth = MediaQuery.of(context).size.width;
+        final isMobile = screenWidth < 600;
+
+        if (isMobile) {
+          return Scaffold(
+            backgroundColor: t.bg,
+            body: Column(
+              children: [
+                _buildTopBar(t),
+                _buildFilterBar(t),
+                Expanded(child: _buildContent(t)),
+              ],
+            ),
+            bottomNavigationBar: _buildMobileReportPicker(t),
+          );
+        }
 
         return Scaffold(
           backgroundColor: t.bg,
@@ -2559,53 +2575,115 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Widget _buildTopBar(AppTheme t) {
+  Widget _buildMobileReportPicker(AppTheme t) {
+    final allowed = _allowedReports;
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _selected.label,
-                style: TextStyle(
-                  color: t.textHi,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
+      decoration: BoxDecoration(
+        color: t.surface,
+        border: Border(top: BorderSide(color: t.border)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            children: allowed.map((type) {
+              final selected = _selected == type;
+              final c = type.color;
+              return GestureDetector(
+                onTap: () => _selectReport(type),
+                child: Container(
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: selected ? c.withOpacity(0.15) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: selected
+                          ? c.withOpacity(0.5)
+                          : t.border,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(type.icon,
+                          color: selected ? c : t.textLo, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        type.label,
+                        style: TextStyle(
+                          color: selected ? c : t.textLo,
+                          fontSize: 12,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                "Three E's Toys — Generated ${DateFormat('MMMM d, yyyy').format(DateTime.now())}",
-                style: TextStyle(color: t.textLo, fontSize: 12),
-              ),
-            ],
+              );
+            }).toList(),
           ),
-
-          if (canExportReports)
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: t.green,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-              ),
-              onPressed: _showReportExportOptions,
-              icon: const Icon(Icons.file_download_rounded, size: 16),
-              label: const Text('Export', style: TextStyle(fontSize: 13)),
-            ),
-        ],
+        ),
       ),
     );
   }
 
+  Widget _buildTopBar(AppTheme t) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    return Container(
+      padding: EdgeInsets.fromLTRB(isMobile ? 16 : 24, 16, isMobile ? 16 : 24, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _selected.label,
+                      style: TextStyle(
+                        color: t.textHi,
+                        fontSize: isMobile ? 18 : 22,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      "Three E's Toys — Generated ${DateFormat('MMMM d, yyyy').format(DateTime.now())}",
+                      style: TextStyle(color: t.textLo, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              if (canExportReports)
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: t.green,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                  ),
+                  onPressed: _showReportExportOptions,
+                  icon: const Icon(Icons.file_download_rounded, size: 16),
+                  label: const Text('Export',
+                      style: TextStyle(fontSize: 13)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildFilterBar(AppTheme t) {
     final f = _filter;
     final showDates = true;
@@ -2627,7 +2705,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final showThreshold = _selected == ReportType.lowStock;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 14),
+      padding: EdgeInsets.fromLTRB(
+          MediaQuery.of(context).size.width < 600 ? 12 : 24, 0,
+          MediaQuery.of(context).size.width < 600 ? 12 : 24, 14),
       child: Wrap(
         spacing: 10,
         runSpacing: 8,
@@ -3149,18 +3229,23 @@ class _TransferView extends StatelessWidget {
                 collapsedIconColor: t.textLo,
                 title: Row(
                   children: [
-                    Text(
-                      transferNo,
-                      style: TextStyle(
-                        color: t.purple,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                    Flexible(
+                      child: Text(
+                        transferNo,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: t.purple,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
-                    _StatusBadge(
-                      r['status']?.toString() ?? '',
-                      color: t.purple,
+                    Flexible(
+                      child: _StatusBadge(
+                        r['status']?.toString() ?? '',
+                        color: t.purple,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Container(
@@ -3186,30 +3271,30 @@ class _TransferView extends StatelessWidget {
                 ),
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Row(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
-                      Icon(Icons.warehouse_rounded, size: 13, color: t.textLo),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          r['warehouse_name']?.toString() ?? '-',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: t.textLo, fontSize: 12),
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.warehouse_rounded, size: 13, color: t.textLo),
+                          const SizedBox(width: 5),
+                          Text(r['warehouse_name']?.toString() ?? '-',
+                              style: TextStyle(color: t.textLo, fontSize: 12)),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      Icon(Icons.arrow_forward_rounded, size: 13, color: t.purple),
-                      const SizedBox(width: 10),
-                      Icon(Icons.store_rounded, size: 13, color: t.textLo),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          r['store_name']?.toString() ?? '-',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: t.textLo, fontSize: 12),
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.arrow_forward_rounded, size: 13, color: t.purple),
+                          const SizedBox(width: 5),
+                          Icon(Icons.store_rounded, size: 13, color: t.textLo),
+                          const SizedBox(width: 5),
+                          Text(r['store_name']?.toString() ?? '-',
+                              style: TextStyle(color: t.textLo, fontSize: 12)),
+                        ],
                       ),
-                      const SizedBox(width: 12),
                       Text(
                         _formatDateStr(r['transfer_date']?.toString()),
                         style: TextStyle(color: t.textLo, fontSize: 11),
@@ -3217,156 +3302,102 @@ class _TransferView extends StatelessWidget {
                     ],
                   ),
                 ),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '₱${_peso.format(_toDouble(r['total_value']))}',
-                      style: TextStyle(
-                        color: t.textHi,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
+                trailing: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 90),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '₱${_peso.format(_toDouble(r['total_value'] ?? r['total_amount'] ?? _toList(r['items']).fold<double>(0, (sum, it) => sum + _toDouble(it['subtotal']))))}',
+                        style: TextStyle(
+                          color: t.textHi,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Icon(Icons.expand_more_rounded, color: t.textLo),
-                  ],
+                    ],
+                  ),
                 ),
                 children: [
                   if (items.isEmpty)
                     Padding(
                       padding: const EdgeInsets.all(16),
-                      child: Text(
-                        'No items found in this transfer.',
-                        style: TextStyle(color: t.textLo, fontSize: 12),
-                      ),
+                      child: Text('No items found in this transfer.',
+                          style: TextStyle(color: t.textLo, fontSize: 12)),
                     )
-                  else ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      color: t.purple.withOpacity(0.08),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              'Code',
-                              style: TextStyle(
-                                color: t.textHi,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
+                  else
+                    Builder(builder: (context) {
+                      final isMobile = MediaQuery.of(context).size.width < 600;
+                      if (isMobile) {
+                        return Column(
+                          children: items.map((it) {
+                            return Container(
+                              margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: t.bg,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: t.border),
                               ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 5,
-                            child: Text(
-                              'Item Name',
-                              style: TextStyle(
-                                color: t.textHi,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(it['product_code']?.toString() ?? '-',
+                                      style: TextStyle(color: t.purple, fontSize: 12, fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 4),
+                                  Text(_cleanItemName(it['item_description']),
+                                      style: TextStyle(color: t.textHi, fontSize: 12)),
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 4,
+                                    children: [
+                                      Text('Qty: ${_toDouble(it['quantity']).toStringAsFixed(0)}',
+                                          style: TextStyle(color: t.textLo, fontSize: 11)),
+                                      Text('₱${_peso.format(_toDouble(it['unit_price']))} / unit',
+                                          style: TextStyle(color: t.textLo, fontSize: 11)),
+                                      Text('Subtotal: ₱${_peso.format(_toDouble(it['subtotal']))}',
+                                          style: TextStyle(color: t.textHi, fontSize: 12, fontWeight: FontWeight.w700)),
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 1,
-                            child: Text(
-                              'Qty',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: t.textHi,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              'Subtotal',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                color: t.textHi,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ...items.asMap().entries.map((e) {
-                      final it = e.value;
-
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
+                            );
+                          }).toList(),
+                        );
+                      }
+                      return Column(children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          color: t.purple.withOpacity(0.08),
+                          child: Row(children: [
+                            Expanded(flex: 2, child: Text('Code', style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                            Expanded(flex: 5, child: Text('Item Name', style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                            Expanded(flex: 1, child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                            Expanded(flex: 2, child: Text('Subtotal', textAlign: TextAlign.right, style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                          ]),
                         ),
-                        decoration: BoxDecoration(
-                          color: e.key.isOdd
-                              ? Colors.white.withOpacity(0.02)
-                              : Colors.transparent,
-                          border: e.key < items.length - 1
-                              ? Border(bottom: BorderSide(color: t.border))
-                              : null,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                it['product_code']?.toString() ?? '-',
-                                style: TextStyle(
-                                  color: t.purple,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
+                        ...items.asMap().entries.map((e) {
+                          final it = e.value;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: e.key.isOdd ? Colors.white.withOpacity(0.02) : Colors.transparent,
+                              border: e.key < items.length - 1 ? Border(bottom: BorderSide(color: t.border)) : null,
                             ),
-                            Expanded(
-                              flex: 5,
-                              child: Text(
-                                _cleanItemName(it['item_description']),
-                                style: TextStyle(
-                                  color: t.textHi,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Text(
-                                _toDouble(it['quantity']).toStringAsFixed(0),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: t.textLo,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                '₱${_peso.format(_toDouble(it['subtotal']))}',
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                  color: t.textHi,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
+                            child: Row(children: [
+                              Expanded(flex: 2, child: Text(it['product_code']?.toString() ?? '-', style: TextStyle(color: t.purple, fontSize: 12, fontWeight: FontWeight.w700))),
+                              Expanded(flex: 5, child: Text(_cleanItemName(it['item_description']), style: TextStyle(color: t.textHi, fontSize: 12))),
+                              Expanded(flex: 1, child: Text(_toDouble(it['quantity']).toStringAsFixed(0), textAlign: TextAlign.center, style: TextStyle(color: t.textLo, fontSize: 12))),
+                              Expanded(flex: 2, child: Text('₱${_peso.format(_toDouble(it['subtotal']))}', textAlign: TextAlign.right, style: TextStyle(color: t.textHi, fontSize: 12, fontWeight: FontWeight.w700))),
+                            ]),
+                          );
+                        }),
+                      ]);
                     }),
-                  ],
                 ],
               ),
             ),
@@ -3947,6 +3978,8 @@ class _TableContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     if (rows.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(32),
@@ -3964,6 +3997,62 @@ class _TableContainer extends StatelessWidget {
       );
     }
 
+    if (isMobile) {
+      return Column(
+        children: rows.asMap().entries.map((entry) {
+          final i = entry.key;
+          final row = entry.value;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: t.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: t.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: List.generate(headers.length, (j) {
+                final isAccent = j == accentColumn;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 110,
+                        child: Text(
+                          headers[j],
+                          style: TextStyle(
+                            color: t.textLo,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Text(
+                          row[j],
+                          style: TextStyle(
+                            color: isAccent ? accentColor : t.textHi,
+                            fontSize: 12,
+                            fontWeight: isAccent
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          );
+        }).toList(),
+      );
+    }
+
+    // Desktop table (unchanged)
     return Container(
       decoration: BoxDecoration(
         color: t.surface,
@@ -4000,11 +4089,13 @@ class _TableContainer extends StatelessWidget {
           ...rows.asMap().entries.map((entry) {
             final i = entry.key;
             final row = entry.value;
-
             return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: i.isOdd ? Colors.white.withOpacity(0.02) : Colors.transparent,
+                color: i.isOdd
+                    ? Colors.white.withOpacity(0.02)
+                    : Colors.transparent,
                 border: i < rows.length - 1
                     ? Border(bottom: BorderSide(color: t.border))
                     : null,
@@ -4346,7 +4437,10 @@ class _BadOrderView extends StatelessWidget {
                 iconColor: t.purple,
                 collapsedIconColor: t.textLo,
 
-                title: Row(
+                title: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       boNo,
@@ -4356,16 +4450,10 @@ class _BadOrderView extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-
-                    const SizedBox(width: 10),
-
                     _StatusBadge(
                       r['status']?.toString() ?? '',
                       color: t.purple,
                     ),
-
-                    const SizedBox(width: 10),
-
                     Container(
                       padding: const EdgeInsets.symmetric(
                         horizontal: 8,
@@ -4389,55 +4477,37 @@ class _BadOrderView extends StatelessWidget {
                     ),
                   ],
                 ),
-
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Row(
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
-                      Icon(Icons.store_rounded,
-                          size: 13, color: t.textLo),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          r['store_name']?.toString() ?? '-',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: t.textLo,
-                            fontSize: 12,
-                          ),
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.store_rounded, size: 13, color: t.textLo),
+                          const SizedBox(width: 5),
+                          Text(r['store_name']?.toString() ?? '-',
+                              style: TextStyle(color: t.textLo, fontSize: 12)),
+                        ],
                       ),
-
-                      const SizedBox(width: 14),
-
-                      Icon(Icons.person_rounded,
-                          size: 13, color: t.textLo),
-                      const SizedBox(width: 5),
-
-                      Flexible(
-                        child: Text(
-                          r['created_by']?.toString() ?? '-',
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: t.textLo,
-                            fontSize: 12,
-                          ),
-                        ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.person_rounded, size: 13, color: t.textLo),
+                          const SizedBox(width: 5),
+                          Text(r['created_by']?.toString() ?? '-',
+                              style: TextStyle(color: t.textLo, fontSize: 12)),
+                        ],
                       ),
-
-                      const Spacer(),
-
                       Text(
                         _formatDateStr(r['created_at']?.toString()),
-                        style: TextStyle(
-                          color: t.textLo,
-                          fontSize: 11,
-                        ),
+                        style: TextStyle(color: t.textLo, fontSize: 11),
                       ),
                     ],
                   ),
                 ),
-
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -4714,7 +4784,10 @@ class _PromoSalesView extends StatelessWidget {
                 iconColor: t.teal,
                 collapsedIconColor: t.textLo,
 
-                title: Row(
+                title: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       promoNo,
@@ -4724,17 +4797,14 @@ class _PromoSalesView extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(width: 10),
                     _StatusBadge(status, color: t.teal),
-                    const SizedBox(width: 10),
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: t.green.withOpacity(0.10),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: t.green.withOpacity(0.25)),
+                        border: Border.all(color: t.green.withOpacity(0.25)),
                       ),
                       child: Text(
                         '${items.length} product${items.length == 1 ? '' : 's'}',
@@ -4747,7 +4817,6 @@ class _PromoSalesView extends StatelessWidget {
                     ),
                   ],
                 ),
-
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 6),
                   child: Column(
@@ -4762,40 +4831,42 @@ class _PromoSalesView extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Row(
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 4,
                         children: [
-                          Icon(Icons.business_rounded,
-                              size: 12, color: t.textLo),
-                          const SizedBox(width: 4),
-                          Text(
-                            supplier,
-                            style: TextStyle(
-                                color: t.textLo, fontSize: 11),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.business_rounded, size: 12, color: t.textLo),
+                              const SizedBox(width: 4),
+                              Text(supplier,
+                                  style: TextStyle(color: t.textLo, fontSize: 11)),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Icon(Icons.tag_rounded,
-                              size: 12, color: t.textLo),
-                          const SizedBox(width: 4),
-                          Text(
-                            calcName,
-                            style: TextStyle(
-                                color: t.textLo, fontSize: 11),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.tag_rounded, size: 12, color: t.textLo),
+                              const SizedBox(width: 4),
+                              Text(calcName,
+                                  style: TextStyle(color: t.textLo, fontSize: 11)),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Icon(Icons.date_range_rounded,
-                              size: 12, color: t.textLo),
-                          const SizedBox(width: 4),
-                          Text(
-                            '$dateFrom – $dateTo',
-                            style: TextStyle(
-                                color: t.textLo, fontSize: 11),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.date_range_rounded, size: 12, color: t.textLo),
+                              const SizedBox(width: 4),
+                              Text('$dateFrom – $dateTo',
+                                  style: TextStyle(color: t.textLo, fontSize: 11)),
+                            ],
                           ),
                         ],
                       ),
                     ],
                   ),
                 ),
-
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
@@ -4825,152 +4896,97 @@ class _PromoSalesView extends StatelessWidget {
                         style: TextStyle(color: t.textLo, fontSize: 12),
                       ),
                     )
-                  else ...[
-                    // Header row
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 10),
-                      color: t.teal.withOpacity(0.08),
-                      child: Row(
+                  else
+                    Builder(builder: (context) {
+                      final isMobile = MediaQuery.of(context).size.width < 600;
+                      if (isMobile) {
+                        return Column(
+                          children: items.map((it) {
+                            final promoPrice = it['promo_price'];
+                            final remaining = it['promo_qty_remaining'];
+                            final limit = it['promo_qty_limit'];
+                            return Container(
+                              margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: t.bg,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: t.border),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(it['product_code']?.toString() ?? '-',
+                                      style: TextStyle(color: t.teal, fontSize: 12, fontWeight: FontWeight.w700)),
+                                  const SizedBox(height: 4),
+                                  Text(_cleanItemName(it['item_name']),
+                                      style: TextStyle(color: t.textHi, fontSize: 12)),
+                                  const SizedBox(height: 6),
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 4,
+                                    children: [
+                                      Text('Orig: ₱${_peso.format(_toDouble(it['original_price']))}',
+                                          style: TextStyle(color: t.textLo, fontSize: 11)),
+                                      if (promoPrice != null)
+                                        Text('Promo: ₱${_peso.format(_toDouble(promoPrice))}',
+                                            style: TextStyle(color: t.green, fontSize: 11, fontWeight: FontWeight.w600)),
+                                      Text('Qty: ${_toDouble(it['qty_sold']).toStringAsFixed(0)}',
+                                          style: TextStyle(color: t.textLo, fontSize: 11)),
+                                      Text('Discount: ₱${_peso.format(_toDouble(it['total_discount']))}',
+                                          style: TextStyle(color: t.amber, fontSize: 11)),
+                                      if (remaining != null)
+                                        Text('Remaining: ${(remaining as num).toStringAsFixed(0)} / ${(limit as num).toStringAsFixed(0)}',
+                                            style: TextStyle(color: t.textLo, fontSize: 11)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      }
+                      // Desktop layout
+                      return Column(
                         children: [
-                          Expanded(flex: 2, child: Text('Code',
-                              style: TextStyle(color: t.textHi,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700))),
-                          Expanded(flex: 4, child: Text('Item Name',
-                              style: TextStyle(color: t.textHi,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700))),
-                          Expanded(flex: 2, child: Text('Orig Price',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(color: t.textHi,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700))),
-                          Expanded(flex: 2, child: Text('Promo Price',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(color: t.textHi,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700))),
-                          Expanded(flex: 1, child: Text('Qty',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: t.textHi,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700))),
-                          Expanded(flex: 2, child: Text('Discount',
-                              textAlign: TextAlign.right,
-                              style: TextStyle(color: t.textHi,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700))),
-                          Expanded(flex: 2, child: Text('Remaining',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: t.textHi,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700))),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            color: t.teal.withOpacity(0.08),
+                            child: Row(children: [
+                              Expanded(flex: 2, child: Text('Code', style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                              Expanded(flex: 4, child: Text('Item Name', style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                              Expanded(flex: 2, child: Text('Orig Price', textAlign: TextAlign.right, style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                              Expanded(flex: 2, child: Text('Promo Price', textAlign: TextAlign.right, style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                              Expanded(flex: 1, child: Text('Qty', textAlign: TextAlign.center, style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                              Expanded(flex: 2, child: Text('Discount', textAlign: TextAlign.right, style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                              Expanded(flex: 2, child: Text('Remaining', textAlign: TextAlign.center, style: TextStyle(color: t.textHi, fontSize: 11, fontWeight: FontWeight.w700))),
+                            ]),
+                          ),
+                          ...items.asMap().entries.map((e) {
+                            final it = e.value;
+                            final remaining = it['promo_qty_remaining'];
+                            final limit = it['promo_qty_limit'];
+                            final promoPrice = it['promo_price'];
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: e.key.isOdd ? Colors.white.withOpacity(0.02) : Colors.transparent,
+                                border: e.key < items.length - 1 ? Border(bottom: BorderSide(color: t.border)) : null,
+                              ),
+                              child: Row(children: [
+                                Expanded(flex: 2, child: Text(it['product_code']?.toString() ?? '-', style: TextStyle(color: t.teal, fontSize: 12, fontWeight: FontWeight.w700))),
+                                Expanded(flex: 4, child: Text(_cleanItemName(it['item_name']), style: TextStyle(color: t.textHi, fontSize: 12))),
+                                Expanded(flex: 2, child: Text('₱${_peso.format(_toDouble(it['original_price']))}', textAlign: TextAlign.right, style: TextStyle(color: t.textLo, fontSize: 12))),
+                                Expanded(flex: 2, child: Text(promoPrice != null ? '₱${_peso.format(_toDouble(promoPrice))}' : '—', textAlign: TextAlign.right, style: TextStyle(color: t.green, fontSize: 12, fontWeight: FontWeight.w600))),
+                                Expanded(flex: 1, child: Text(_toDouble(it['qty_sold']).toStringAsFixed(0), textAlign: TextAlign.center, style: TextStyle(color: t.textLo, fontSize: 12))),
+                                Expanded(flex: 2, child: Text('₱${_peso.format(_toDouble(it['total_discount']))}', textAlign: TextAlign.right, style: TextStyle(color: t.amber, fontSize: 12))),
+                                Expanded(flex: 2, child: Text(remaining != null ? '${(remaining as num).toStringAsFixed(0)} / ${(limit as num).toStringAsFixed(0)}' : '—', textAlign: TextAlign.center, style: TextStyle(color: remaining != null && (remaining as num) <= 0 ? t.red : t.textLo, fontSize: 12))),
+                              ]),
+                            );
+                          }),
                         ],
-                      ),
-                    ),
-
-                    // Item rows
-                    ...items.asMap().entries.map((e) {
-                      final it = e.value;
-                      final remaining = it['promo_qty_remaining'];
-                      final limit     = it['promo_qty_limit'];
-                      final promoPrice = it['promo_price'];
-
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: e.key.isOdd
-                              ? Colors.white.withOpacity(0.02)
-                              : Colors.transparent,
-                          border: e.key < items.length - 1
-                              ? Border(
-                              bottom: BorderSide(color: t.border))
-                              : null,
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                it['product_code']?.toString() ?? '-',
-                                style: TextStyle(
-                                    color: t.teal,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 4,
-                              child: Text(
-                                _cleanItemName(it['item_name']),
-                                style: TextStyle(
-                                    color: t.textHi, fontSize: 12),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                '₱${_peso.format(_toDouble(it['original_price']))}',
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                    color: t.textLo, fontSize: 12),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                promoPrice != null
-                                    ? '₱${_peso.format(_toDouble(promoPrice))}'
-                                    : '—',
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                    color: t.green,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Text(
-                                _toDouble(it['qty_sold'])
-                                    .toStringAsFixed(0),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                    color: t.textLo, fontSize: 12),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                '₱${_peso.format(_toDouble(it['total_discount']))}',
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                    color: t.amber, fontSize: 12),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                remaining != null
-                                    ? '${(remaining as num).toStringAsFixed(0)} / ${(limit as num).toStringAsFixed(0)}'
-                                    : '—',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: remaining != null &&
-                                      (remaining as num) <= 0
-                                      ? t.red
-                                      : t.textLo,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
                       );
                     }),
-                  ],
                 ],
               ),
             ),
