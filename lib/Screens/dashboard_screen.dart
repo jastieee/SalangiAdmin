@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:salangi_ko_pu/Screens/deliveries_screen.dart';
 import '../db/DBResult.dart';
+import 'change_password_sheet.dart';
 import 'user_management_screen.dart';
 import 'product_management_screen.dart';
 import 'inventory_screen.dart';
@@ -26,6 +27,20 @@ Color get _red => _t.red;
 Color get _teal => _t.teal;
 Color get _textHi => _t.textHi;
 Color get _textLo => _t.textLo;
+
+// ── Chart color palette (10 colors for top-10) ───────────────────────────
+const List<Color> _chartColors = [
+  Color(0xFF378ADD), // blue
+  Color(0xFF1D9E75), // teal
+  Color(0xFF639922), // green
+  Color(0xFFBA7517), // amber
+  Color(0xFFE24B4A), // red
+  Color(0xFF7F77DD), // purple
+  Color(0xFFD85A30), // coral
+  Color(0xFFD4537E), // pink
+  Color(0xFF888780), // gray
+  Color(0xFF0F6E56), // dark teal
+];
 
 double _toDouble(dynamic v) {
   if (v == null) return 0.0;
@@ -94,35 +109,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   bool _hasAdminPermission(String permissionName) {
     if (permissionName.isEmpty) return true;
-
     final modules = List<Map<String, dynamic>>.from(
       widget.user?['admin_modules'] ?? [],
     );
-
     return modules.any((m) {
       final name = m['module_name']?.toString() ?? '';
       final canAccess =
           m['can_access'] == true ||
               m['can_access'] == 1 ||
               m['can_access'].toString() == '1';
-
       return name == permissionName && canAccess;
     });
   }
 
   List<dynamic> get _visibleDestinations {
-    return _allDestinations.where((d) => _hasAdminPermission(d.permission))
-        .toList();
+    return _allDestinations.where((d) => _hasAdminPermission(d.permission)).toList();
   }
 
   Widget _screen() {
     final destinations = _visibleDestinations;
-
     if (destinations.isEmpty) return _DashboardTab(user: widget.user);
     if (_selectedIndex >= destinations.length) _selectedIndex = 0;
-
     final label = destinations[_selectedIndex].label;
-
     switch (label) {
       case 'Products':
         return ProductManagementScreen(currentUser: widget.user);
@@ -143,35 +151,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
       default:
         return _DashboardTab(user: widget.user);
     }
-
-
   }
 
   Future<void> _logout() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) =>
-          AlertDialog(
-            backgroundColor: _surface,
-            title: Text('Logout', style: TextStyle(color: _textHi)),
-            content: Text('Are you sure you want to logout?',
-                style: TextStyle(color: _textLo)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel', style: TextStyle(color: _textLo)),
-              ),
-              FilledButton(
-                style: FilledButton.styleFrom(backgroundColor: _red),
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Logout'),
-              ),
-            ],
+      builder: (_) => AlertDialog(
+        backgroundColor: _surface,
+        title: Text('Logout', style: TextStyle(color: _textHi)),
+        content: Text('Are you sure you want to logout?', style: TextStyle(color: _textLo)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel', style: TextStyle(color: _textLo)),
           ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: _red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
     );
-
     if (ok != true || !mounted) return;
-
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -180,11 +182,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _showChangePassword() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Change password screen/API will be added next.'),
-        backgroundColor: _blue,
-        behavior: SnackBarBehavior.floating,
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ChangePasswordSheet(
+        userId: widget.user?['user_id'] as int? ?? 0,
       ),
     );
   }
@@ -196,41 +199,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
-      builder: (_) =>
-          SafeArea(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: Icon(Icons.lock_reset_rounded, color: _blue),
-                  title: Text(
-                      'Change Password', style: TextStyle(color: _textHi)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _showChangePassword();
-                  },
-                ),
-                ListTile(
-                  leading: Icon(Icons.logout_rounded, color: _red),
-                  title: Text('Logout', style: TextStyle(color: _red)),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _logout();
-                  },
-                ),
-              ],
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.lock_reset_rounded, color: _blue),
+              title: Text('Change Password', style: TextStyle(color: _textHi)),
+              onTap: () {
+                Navigator.pop(context);
+                _showChangePassword();
+              },
             ),
-          ),
+            ListTile(
+              leading: Icon(Icons.logout_rounded, color: _red),
+              title: Text('Logout', style: TextStyle(color: _red)),
+              onTap: () {
+                Navigator.pop(context);
+                _logout();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
   @override
-  Widget build(BuildContext context) =>
-      _isWindows ? _windowsLayout() : _androidLayout();
+  Widget build(BuildContext context) => _isWindows ? _windowsLayout() : _androidLayout();
 
   Widget _windowsLayout() {
     final destinations = _visibleDestinations;
-
     return Scaffold(
       backgroundColor: _bg,
       body: Row(
@@ -249,12 +248,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       IconButton(
                         icon: Icon(
-                          _sidebarOpen ? Icons.menu_open_rounded : Icons
-                              .menu_rounded,
+                          _sidebarOpen ? Icons.menu_open_rounded : Icons.menu_rounded,
                           color: _textHi,
                         ),
-                        onPressed: () =>
-                            setState(() => _sidebarOpen = !_sidebarOpen),
+                        onPressed: () => setState(() => _sidebarOpen = !_sidebarOpen),
                       ),
                       if (_sidebarOpen) ...[
                         const SizedBox(width: 8),
@@ -285,42 +282,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }),
                 const Spacer(),
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: ValueListenableBuilder<bool>(
                     valueListenable: themeNotifier,
-                    builder: (_, isDark, __) =>
-                        GestureDetector(
-                          onTap: () => setState(() => themeNotifier.toggle()),
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 0, vertical: 2),
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 11),
-                            decoration: BoxDecoration(
-                              color: Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  isDark ? Icons.light_mode_rounded : Icons
-                                      .dark_mode_rounded,
-                                  color: _textLo,
-                                  size: 20,
-                                ),
-                                if (_sidebarOpen) ...[
-                                  const SizedBox(width: 12),
-                                  Text(
-                                    isDark ? 'Light Mode' : 'Dark Mode',
-                                    style: TextStyle(
-                                        color: _textLo, fontSize: 14),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
+                    builder: (_, isDark, __) => GestureDetector(
+                      onTap: () => setState(() => themeNotifier.toggle()),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
                         ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                              color: _textLo,
+                              size: 20,
+                            ),
+                            if (_sidebarOpen) ...[
+                              const SizedBox(width: 12),
+                              Text(
+                                isDark ? 'Light Mode' : 'Dark Mode',
+                                style: TextStyle(color: _textLo, fontSize: 14),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 if (_sidebarOpen)
@@ -353,7 +344,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _androidLayout() {
     final destinations = _visibleDestinations;
-    // Show max 4 primary items + "More" tab on mobile
     const maxPrimary = 4;
     final primaryDests = destinations.length <= maxPrimary
         ? destinations
@@ -361,11 +351,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final overflowDests = destinations.length > maxPrimary
         ? destinations.sublist(maxPrimary)
         : <dynamic>[];
-
-    // Check if selected index is in overflow
-    final effectiveNavIndex = _selectedIndex < maxPrimary
-        ? _selectedIndex
-        : maxPrimary; // "More" tab index
+    final effectiveNavIndex = _selectedIndex < maxPrimary ? _selectedIndex : maxPrimary;
 
     return Scaffold(
       backgroundColor: _bg,
@@ -377,7 +363,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Icon(Icons.storefront_rounded, color: _blue, size: 22),
             const SizedBox(width: 10),
             Text(
-              "Salangi ko Pu",
+              "Salangi Ko Pu",
               style: TextStyle(
                   color: _textHi, fontWeight: FontWeight.w700, fontSize: 16),
             ),
@@ -410,7 +396,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         selectedIndex: effectiveNavIndex,
         onDestinationSelected: (i) {
           if (overflowDests.isNotEmpty && i == maxPrimary) {
-            // Show "More" bottom sheet
             showModalBottomSheet(
               context: context,
               backgroundColor: _surface,
@@ -438,17 +423,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       final d = entry.value;
                       final isSelected = _selectedIndex == realIndex;
                       return ListTile(
-                        leading: Icon(
-                          d.icon,
-                          color: isSelected ? _blue : _textLo,
-                        ),
+                        leading: Icon(d.icon, color: isSelected ? _blue : _textLo),
                         title: Text(
                           d.label,
                           style: TextStyle(
                             color: isSelected ? _blue : _textHi,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.normal,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                           ),
                         ),
                         trailing: isSelected
@@ -483,18 +463,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Icons.more_horiz_rounded,
                 color: _selectedIndex >= maxPrimary ? _blue : _textLo,
               ),
-              selectedIcon:
-              Icon(Icons.more_horiz_rounded, color: _blue),
+              selectedIcon: Icon(Icons.more_horiz_rounded, color: _blue),
               label: 'More',
             ),
         ],
       ),
     );
   }
+
   Widget _userTile() {
     final name = widget.user?['full_name'] as String? ?? 'User';
     final email = widget.user?['email'] as String? ?? '';
-
     return InkWell(
       onTap: _showUserMenu,
       borderRadius: BorderRadius.circular(12),
@@ -508,19 +487,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         child: Row(
           children: [
-            GestureDetector(
-              onTap: _showUserMenu,
-              child: CircleAvatar(
-                backgroundColor: _blue.withOpacity(0.15),
-                radius: 18,
-                child: Text(
-                  _initials,
-                  style: TextStyle(
-                    color: _blue,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+            CircleAvatar(
+              backgroundColor: _blue.withOpacity(0.15),
+              radius: 18,
+              child: Text(
+                _initials,
+                style: TextStyle(color: _blue, fontSize: 13, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(width: 10),
@@ -530,11 +502,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Text(
                     name,
-                    style: TextStyle(
-                      color: _textHi,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(color: _textHi, fontSize: 13, fontWeight: FontWeight.w600),
                     overflow: TextOverflow.ellipsis,
                   ),
                   if (email.isNotEmpty)
@@ -553,6 +521,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Dashboard Tab
+// ═══════════════════════════════════════════════════════════════════════════
 
 class _DashboardTab extends StatefulWidget {
   final Map<String, dynamic>? user;
@@ -578,9 +550,7 @@ class _DashboardTabState extends State<_DashboardTab> {
       _loading = true;
       _error = null;
     });
-
     final result = await DBService.instance.fetchDashboard();
-
     if (mounted) {
       setState(() {
         _loading = false;
@@ -599,14 +569,18 @@ class _DashboardTabState extends State<_DashboardTab> {
     if (_error != null) return _ErrorView(message: _error!, onRetry: _load);
 
     List<Map<String, dynamic>> asList(String key) =>
-        (_data[key] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
+        (_data[key] as List?)
+            ?.map((e) => Map<String, dynamic>.from(e as Map))
+            .toList() ??
+            [];
 
     final summary = Map<String, dynamic>.from(_data['summary'] as Map? ?? {});
     final weeklySales = asList('weekly_sales').take(7).toList();
-    final salesByProduct = asList('sales_by_product').take(5).toList();
+    final salesByProduct = asList('sales_by_product').take(10).toList();
     final recentTrx = asList('recent_transactions').take(5).toList();
     final storeLowStock = asList('store_low_stock').take(5).toList();
     final warehouseLowStock = asList('warehouse_low_stock').take(5).toList();
+    final peakHours = asList('peak_hours');
 
     return RefreshIndicator(
       color: _blue,
@@ -626,19 +600,22 @@ class _DashboardTabState extends State<_DashboardTab> {
                   children: [
                     Text(
                       'Dashboard',
-                      style: TextStyle(color: _textHi, fontSize: 24, fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                          color: _textHi, fontSize: 24, fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 2),
                     Text('Pull to refresh', style: TextStyle(color: _textLo, fontSize: 12)),
                   ],
                 ),
-                IconButton(icon: Icon(Icons.refresh_rounded, color: _textLo), onPressed: _load),
+                IconButton(
+                    icon: Icon(Icons.refresh_rounded, color: _textLo),
+                    onPressed: _load),
               ],
             ),
             const SizedBox(height: 20),
             _SummaryCards(summary: summary),
             const SizedBox(height: 20),
-            _buildChartsRow(context, weeklySales, salesByProduct),
+            _buildChartsRow(context, weeklySales, salesByProduct, peakHours),
             const SizedBox(height: 20),
             _buildBottomRow(context, recentTrx, storeLowStock, warehouseLowStock),
           ],
@@ -651,23 +628,34 @@ class _DashboardTabState extends State<_DashboardTab> {
       BuildContext ctx,
       List<Map<String, dynamic>> weekly,
       List<Map<String, dynamic>> byProduct,
+      List<Map<String, dynamic>> peakHours,
       ) {
     final isWide = MediaQuery.of(ctx).size.width > 700;
-
     if (isWide) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(flex: 3, child: _SalesChart(weeklyData: weekly)),
+          // Left column: weekly sales + peak hours stacked
+          Expanded(
+            flex: 3,
+            child: Column(
+              children: [
+                _SalesChart(weeklyData: weekly),
+                const SizedBox(height: 16),
+                _PeakHoursChart(data: peakHours),
+              ],
+            ),
+          ),
           const SizedBox(width: 16),
-          Expanded(flex: 2, child: _ProductPieChart(data: byProduct)),
+          Expanded(flex: 3, child: _ProductPieChart(data: byProduct)),
         ],
       );
     }
-
     return Column(
       children: [
         _SalesChart(weeklyData: weekly),
+        const SizedBox(height: 16),
+        _PeakHoursChart(data: peakHours),
         const SizedBox(height: 16),
         _ProductPieChart(data: byProduct),
       ],
@@ -681,7 +669,6 @@ class _DashboardTabState extends State<_DashboardTab> {
       List<Map<String, dynamic>> warehouseLow,
       ) {
     final isWide = MediaQuery.of(ctx).size.width > 700;
-
     if (isWide) {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,7 +688,6 @@ class _DashboardTabState extends State<_DashboardTab> {
         ],
       );
     }
-
     return Column(
       children: [
         _RecentOrders(data: trx),
@@ -713,6 +699,10 @@ class _DashboardTabState extends State<_DashboardTab> {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Summary Cards
+// ═══════════════════════════════════════════════════════════════════════════
 
 class _SummaryCards extends StatelessWidget {
   final Map<String, dynamic> summary;
@@ -774,7 +764,6 @@ class _SummaryCards extends StatelessWidget {
             : constraints.maxWidth > 600
             ? 3
             : 2;
-
         return GridView.count(
           crossAxisCount: crossCount,
           shrinkWrap: true,
@@ -830,7 +819,8 @@ class _StatCard extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: TextStyle(color: _textLo, fontSize: 12, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                    color: _textLo, fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ),
             Container(
@@ -848,7 +838,8 @@ class _StatCard extends StatelessWidget {
           children: [
             Text(
               value,
-              style: TextStyle(color: _textHi, fontSize: 20, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                  color: _textHi, fontSize: 20, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 2),
             Text(sub, style: TextStyle(color: color, fontSize: 11)),
@@ -858,6 +849,10 @@ class _StatCard extends StatelessWidget {
     ),
   );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Sales Chart (unchanged)
+// ═══════════════════════════════════════════════════════════════════════════
 
 class _SalesChart extends StatelessWidget {
   final List<Map<String, dynamic>> weeklyData;
@@ -870,7 +865,8 @@ class _SalesChart extends StatelessWidget {
         title: 'Weekly Sales',
         child: SizedBox(
           height: 180,
-          child: Center(child: Text('No sales data yet', style: TextStyle(color: _textLo))),
+          child: Center(
+              child: Text('No sales data yet', style: TextStyle(color: _textLo))),
         ),
       );
     }
@@ -879,7 +875,6 @@ class _SalesChart extends StatelessWidget {
       weeklyData.length,
           (i) => FlSpot(i.toDouble(), _toDouble(weeklyData[i]['total'])),
     );
-
     final labels = weeklyData.map((d) => (d['day'] as String?) ?? '').toList();
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final sumY = spots.map((s) => s.y).reduce((a, b) => a + b);
@@ -896,7 +891,8 @@ class _SalesChart extends StatelessWidget {
             gridData: FlGridData(
               show: true,
               drawVerticalLine: false,
-              getDrawingHorizontalLine: (_) => FlLine(color: Colors.white10, strokeWidth: 1),
+              getDrawingHorizontalLine: (_) =>
+                  FlLine(color: Colors.white10, strokeWidth: 1),
             ),
             titlesData: FlTitlesData(
               leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -909,7 +905,8 @@ class _SalesChart extends StatelessWidget {
                   getTitlesWidget: (v, _) {
                     final i = v.toInt();
                     if (i < 0 || i >= labels.length) return const SizedBox();
-                    return Text(labels[i], style: TextStyle(color: _textLo, fontSize: 10));
+                    return Text(labels[i],
+                        style: TextStyle(color: _textLo, fontSize: 10));
                   },
                 ),
               ),
@@ -947,90 +944,590 @@ class _SalesChart extends StatelessWidget {
   }
 }
 
-class _ProductPieChart extends StatelessWidget {
+// ═══════════════════════════════════════════════════════════════════════════
+// ★ NEW: Top-10 Product Pie Chart with scrollable legend
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _ProductPieChart extends StatefulWidget {
   final List<Map<String, dynamic>> data;
   const _ProductPieChart({required this.data});
 
-  static List<Color> _colors = [_blue, _green, _amber, _red, Color(0xFF9C27B0)];
+  @override
+  State<_ProductPieChart> createState() => _ProductPieChartState();
+}
 
-  String _shortName(String desc) {
-    final clean = desc.replaceAll(RegExp(r'\s+'), ' ').trim();
-    return clean.length > 18 ? '${clean.substring(0, 16)}…' : clean;
+class _ProductPieChartState extends State<_ProductPieChart> {
+  int _touchedIndex = -1;
+
+  /// Truncate long product names for the legend
+  String _shortName(String s) {
+    final clean = s.replaceAll(RegExp(r'\s+'), ' ').trim();
+    return clean.length > 26 ? '${clean.substring(0, 24)}…' : clean;
   }
 
   @override
   Widget build(BuildContext context) {
-    if (data.isEmpty) {
+    if (widget.data.isEmpty) {
       return _Card(
-        title: 'Top Products',
+        title: 'Top Products by Revenue',
+        subtitle: 'All-time cumulative sales',
         child: SizedBox(
-          height: 180,
-          child: Center(child: Text('No data yet', style: TextStyle(color: _textLo))),
+          height: 200,
+          child: Center(
+              child: Text('No data yet', style: TextStyle(color: _textLo))),
         ),
       );
     }
 
-    final total = data.fold<double>(0, (s, d) => s + _toDouble(d['total']));
+    final total =
+    widget.data.fold<double>(0, (s, d) => s + _toDouble(d['total']));
 
     return _Card(
-      title: 'Top Products',
-      subtitle: 'By revenue',
-      child: SizedBox(
-        height: 180,
-        child: Row(
-          children: [
-            Expanded(
-              child: PieChart(
-                PieChartData(
-                  sectionsSpace: 2,
-                  centerSpaceRadius: 34,
-                  sections: List.generate(data.length, (i) {
-                    final pct = total > 0 ? _toDouble(data[i]['total']) / total * 100 : 0.0;
-                    return PieChartSectionData(
-                      color: _colors[i % _colors.length],
-                      value: pct,
-                      radius: 46,
-                      title: '${pct.toStringAsFixed(0)}%',
-                      titleStyle: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                    );
-                  }),
+      title: 'Top ${widget.data.length} Products by Revenue',
+      subtitle: 'All-time cumulative  •  ₱${total.toStringAsFixed(2)} total',
+      child: Column(
+        children: [
+          // ── Donut chart ─────────────────────────────────────────────────
+          SizedBox(
+            height: 200,
+            child: PieChart(
+              PieChartData(
+                sectionsSpace: 2,
+                centerSpaceRadius: 48,
+                pieTouchData: PieTouchData(
+                  touchCallback: (event, response) {
+                    setState(() {
+                      if (!event.isInterestedForInteractions ||
+                          response == null ||
+                          response.touchedSection == null) {
+                        _touchedIndex = -1;
+                        return;
+                      }
+                      _touchedIndex =
+                          response.touchedSection!.touchedSectionIndex;
+                    });
+                  },
                 ),
+                sections: List.generate(widget.data.length, (i) {
+                  final pct = total > 0
+                      ? _toDouble(widget.data[i]['total']) / total * 100
+                      : 0.0;
+                  final isTouched = i == _touchedIndex;
+                  final color = _chartColors[i % _chartColors.length];
+
+                  return PieChartSectionData(
+                    color: color,
+                    value: pct,
+                    // Expand touched slice slightly
+                    radius: isTouched ? 56 : 46,
+                    title: isTouched ? '${pct.toStringAsFixed(1)}%' : '',
+                    titleStyle: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    badgeWidget: null,
+                  );
+                }),
+                // Center label shows touched item details
+                centerSpaceColor: _surface,
               ),
             ),
-            const SizedBox(width: 10),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: List.generate(
-                data.length,
-                    (i) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 3),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 9,
-                        height: 9,
-                        decoration: BoxDecoration(
-                          color: _colors[i % _colors.length],
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        _shortName((data[i]['item_description'] as String?) ?? ''),
-                        style: TextStyle(color: _textLo, fontSize: 10),
-                      ),
-                    ],
+          ),
+
+          // ── Center hint text (shown when nothing is touched) ─────────────
+          if (_touchedIndex == -1)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                'Tap a slice to highlight',
+                style: TextStyle(color: _textLo, fontSize: 10),
+              ),
+            ),
+
+          // ── Touched slice detail banner ──────────────────────────────────
+          if (_touchedIndex >= 0 && _touchedIndex < widget.data.length)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: _chartColors[_touchedIndex % _chartColors.length]
+                    .withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _chartColors[_touchedIndex % _chartColors.length]
+                      .withOpacity(0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color:
+                      _chartColors[_touchedIndex % _chartColors.length],
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      (widget.data[_touchedIndex]['item_description']
+                      as String? ??
+                          ''),
+                      style: TextStyle(
+                          color: _textHi,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  Text(
+                    '₱${_toDouble(widget.data[_touchedIndex]['total']).toStringAsFixed(2)}',
+                    style: TextStyle(
+                        color: _chartColors[
+                        _touchedIndex % _chartColors.length],
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+
+          const Divider(height: 12),
+
+          // ── Scrollable legend (max ~180px tall, shows all 10) ─────────────
+          SizedBox(
+            height: 220,
+            child: ListView.builder(
+              physics: const ClampingScrollPhysics(),
+              itemCount: widget.data.length,
+              itemBuilder: (context, i) {
+                final item = widget.data[i];
+                final color = _chartColors[i % _chartColors.length];
+                final pct = total > 0
+                    ? _toDouble(item['total']) / total * 100
+                    : 0.0;
+                final rev = _toDouble(item['total']);
+                final isHighlighted = i == _touchedIndex;
+
+                return GestureDetector(
+                  onTap: () =>
+                      setState(() => _touchedIndex = isHighlighted ? -1 : i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    margin: const EdgeInsets.symmetric(vertical: 3),
+                    padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isHighlighted
+                          ? color.withOpacity(0.08)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isHighlighted
+                            ? color.withOpacity(0.3)
+                            : Colors.transparent,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        // Rank badge
+                        SizedBox(
+                          width: 22,
+                          child: Text(
+                            '${i + 1}',
+                            style: TextStyle(
+                              color: _textLo,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        // Color dot
+                        Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: color,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Product name
+                        Expanded(
+                          child: Text(
+                            _shortName(
+                                (item['item_description'] as String?) ?? ''),
+                            style: TextStyle(
+                              color:
+                              isHighlighted ? _textHi : _textLo,
+                              fontSize: 11,
+                              fontWeight: isHighlighted
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        // Revenue amount
+                        Text(
+                          '₱${rev.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            color: isHighlighted ? color : _textLo,
+                            fontSize: 11,
+                            fontWeight: isHighlighted
+                                ? FontWeight.w700
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        // Percentage badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: color.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${pct.toStringAsFixed(1)}%',
+                            style: TextStyle(
+                              color: color,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ★ NEW: Peak Hours Chart
+// ═══════════════════════════════════════════════════════════════════════════
+
+class _PeakHoursChart extends StatefulWidget {
+  final List<Map<String, dynamic>> data;
+  const _PeakHoursChart({required this.data});
+
+  @override
+  State<_PeakHoursChart> createState() => _PeakHoursChartState();
+}
+
+class _PeakHoursChartState extends State<_PeakHoursChart> {
+  // Toggle: show by transaction count or by revenue
+  bool _showRevenue = false;
+
+  String _formatHour(int h) {
+    if (h == 0) return '12a';
+    if (h < 12) return '${h}a';
+    if (h == 12) return '12p';
+    return '${h - 12}p';
+  }
+
+  String _label(int h) {
+    if (h == 0) return '12:00 AM';
+    if (h < 12) return '$h:00 AM';
+    if (h == 12) return '12:00 PM';
+    return '${h - 12}:00 PM';
+  }
+
+  // Classify each bar into a heat tier for coloring
+  Color _barColor(double value, double max) {
+    if (max == 0) return _textLo.withOpacity(0.3);
+    final ratio = value / max;
+    if (ratio >= 0.75) return _red;
+    if (ratio >= 0.50) return _amber;
+    if (ratio >= 0.25) return _blue;
+    return _blue.withOpacity(0.35);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.data.isEmpty) {
+      return _Card(
+        title: 'Peak Hours',
+        child: SizedBox(
+          height: 160,
+          child: Center(
+              child: Text('No data yet', style: TextStyle(color: _textLo))),
+        ),
+      );
+    }
+
+    final values = widget.data
+        .map((d) => _showRevenue ? _toDouble(d['revenue']) : _toDouble(d['tx_count']))
+        .toList();
+    final maxVal = values.reduce((a, b) => a > b ? a : b);
+    final peakHourIdx = values.indexOf(maxVal);
+    final peakHour = _toInt(widget.data[peakHourIdx]['hour']);
+
+    // Find top-3 busy hours for the insight chips
+    final ranked = List.generate(24, (i) => i)
+      ..sort((a, b) => values[b].compareTo(values[a]));
+    final top3 = ranked.take(3).toList();
+
+    return _Card(
+      title: 'Peak Hours',
+      subtitle: _showRevenue
+          ? 'Revenue distribution by hour  •  all-time'
+          : 'Transaction volume by hour  •  all-time',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Toggle row ─────────────────────────────────────────────────
+          Row(
+            children: [
+              _ToggleChip(
+                label: 'Transactions',
+                active: !_showRevenue,
+                onTap: () => setState(() => _showRevenue = false),
+              ),
+              const SizedBox(width: 8),
+              _ToggleChip(
+                label: 'Revenue',
+                active: _showRevenue,
+                onTap: () => setState(() => _showRevenue = true),
+              ),
+              const Spacer(),
+              // Peak hour badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _red.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _red.withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.local_fire_department_rounded, color: _red, size: 13),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Peak: ${_label(peakHour)}',
+                      style: TextStyle(
+                          color: _red, fontSize: 11, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          // ── Bar chart ──────────────────────────────────────────────────
+          SizedBox(
+            height: 130,
+            child: BarChart(
+              BarChartData(
+                maxY: maxVal <= 0 ? 1 : maxVal * 1.15,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (_) =>
+                      FlLine(color: Colors.white10, strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles:
+                  AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles:
+                  AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles:
+                  AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 18,
+                      interval: 3,
+                      getTitlesWidget: (v, _) {
+                        final h = v.toInt();
+                        // Show label every 3 hours: 12a, 3a, 6a, 9a, 12p, 3p, 6p, 9p
+                        if (h % 3 != 0) return const SizedBox();
+                        return Text(
+                          _formatHour(h),
+                          style: TextStyle(color: _textLo, fontSize: 9),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (group, _, rod, __) {
+                      final h = group.x;
+                      final val = rod.toY;
+                      final display = _showRevenue
+                          ? '₱${val.toStringAsFixed(0)}'
+                          : '${val.toInt()} txn';
+                      return BarTooltipItem(
+                        '${_label(h)}\n$display',
+                        TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600),
+                      );
+                    },
+                  ),
+                ),
+                barGroups: List.generate(24, (i) {
+                  final v = values[i];
+                  final color = _barColor(v, maxVal);
+                  final isPeak = i == peakHourIdx;
+                  return BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(
+                        toY: v,
+                        color: color,
+                        width: isPeak ? 9 : 7,
+                        borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(3)),
+                        backDrawRodData: BackgroundBarChartRodData(
+                          show: true,
+                          toY: maxVal <= 0 ? 1 : maxVal * 1.15,
+                          color: Colors.white.withOpacity(0.03),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ── Heat legend ────────────────────────────────────────────────
+          Row(
+            children: [
+              _HeatDot(color: _red, label: 'Peak (≥75%)'),
+              const SizedBox(width: 10),
+              _HeatDot(color: _amber, label: 'Busy (≥50%)'),
+              const SizedBox(width: 10),
+              _HeatDot(color: _blue, label: 'Moderate'),
+              const SizedBox(width: 10),
+              _HeatDot(color: _blue.withOpacity(0.35), label: 'Low'),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // ── Top-3 busiest hours chips ──────────────────────────────────
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: top3.asMap().entries.map((e) {
+              final rank = e.key + 1;
+              final idx = e.value;
+              final h = _toInt(widget.data[idx]['hour']);
+              final v = values[idx];
+              final display = _showRevenue
+                  ? '₱${v.toStringAsFixed(0)}'
+                  : '${v.toInt()} txn';
+              final medals = ['🥇', '🥈', '🥉'];
+              return Container(
+                padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _bg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: _border),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(medals[rank - 1], style: const TextStyle(fontSize: 12)),
+                    const SizedBox(width: 5),
+                    Text(
+                      _label(h),
+                      style: TextStyle(
+                          color: _textHi,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 5),
+                    Text(display,
+                        style: TextStyle(color: _textLo, fontSize: 11)),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Small toggle chip used by _PeakHoursChart
+class _ToggleChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+  const _ToggleChip(
+      {required this.label, required this.active, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: active ? _blue.withOpacity(0.12) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: active ? _blue.withOpacity(0.4) : _border,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: active ? _blue : _textLo,
+          fontSize: 11,
+          fontWeight: active ? FontWeight.w600 : FontWeight.normal,
+        ),
+      ),
+    ),
+  );
+}
+
+// Colored dot + label for the heat legend
+class _HeatDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _HeatDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+      const SizedBox(width: 4),
+      Text(label, style: TextStyle(color: _textLo, fontSize: 9)),
+    ],
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Recent Transactions
+// ═══════════════════════════════════════════════════════════════════════════
 
 class _RecentOrders extends StatelessWidget {
   final List<Map<String, dynamic>> data;
@@ -1044,7 +1541,8 @@ class _RecentOrders extends StatelessWidget {
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Text('No transactions yet', style: TextStyle(color: _textLo)),
+            child: Text('No transactions yet',
+                style: TextStyle(color: _textLo)),
           ),
         ),
       );
@@ -1056,11 +1554,14 @@ class _RecentOrders extends StatelessWidget {
       child: Column(
         children: data.map((t) {
           final trxNo = (t['transaction_no'] as String?) ?? '-';
-          final amount = _toDouble(t['total_amount']).toStringAsFixed(2);
-          final customer = (t['customer_code'] as String?) ?? 'WALK-IN';
+          final amount =
+          _toDouble(t['total_amount']).toStringAsFixed(2);
+          final customer =
+              (t['customer_code'] as String?) ?? 'WALK-IN';
           final items = _toInt(t['items_count']);
           final dateStr = (t['created_at'] as String?) ?? '';
-          final time = dateStr.length >= 19 ? dateStr.substring(11, 16) : '';
+          final time =
+          dateStr.length >= 19 ? dateStr.substring(11, 16) : '';
 
           return Padding(
             padding: const EdgeInsets.symmetric(vertical: 7),
@@ -1070,27 +1571,36 @@ class _RecentOrders extends StatelessWidget {
                   flex: 2,
                   child: Text(
                     trxNo,
-                    style: TextStyle(color: _blue, fontSize: 11, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                        color: _blue,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600),
                   ),
                 ),
                 Expanded(
                   flex: 2,
-                  child: Text(customer, style: TextStyle(color: _textHi, fontSize: 11)),
+                  child: Text(customer,
+                      style: TextStyle(color: _textHi, fontSize: 11)),
                 ),
                 Expanded(
                   flex: 1,
-                  child: Text('$items items', style: TextStyle(color: _textLo, fontSize: 10)),
+                  child: Text('$items items',
+                      style: TextStyle(color: _textLo, fontSize: 10)),
                 ),
                 Expanded(
                   flex: 2,
                   child: Text(
                     '₱$amount',
-                    style: TextStyle(color: _textHi, fontSize: 12, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                        color: _textHi,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700),
                     textAlign: TextAlign.right,
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(time, style: TextStyle(color: _textLo, fontSize: 10)),
+                Text(time,
+                    style: TextStyle(color: _textLo, fontSize: 10)),
               ],
             ),
           );
@@ -1099,6 +1609,10 @@ class _RecentOrders extends StatelessWidget {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Low Stock Alerts
+// ═══════════════════════════════════════════════════════════════════════════
 
 class _LowStockAlerts extends StatelessWidget {
   final String title;
@@ -1122,7 +1636,8 @@ class _LowStockAlerts extends StatelessWidget {
             children: [
               Icon(Icons.check_circle_rounded, color: _green, size: 18),
               const SizedBox(width: 8),
-              Text('All items well stocked!', style: TextStyle(color: _green, fontSize: 13)),
+              Text('All items well stocked!',
+                  style: TextStyle(color: _green, fontSize: 13)),
             ],
           ),
         ),
@@ -1137,7 +1652,8 @@ class _LowStockAlerts extends StatelessWidget {
       titleAccentColor: _amber,
       child: Column(
         children: data.map((item) {
-          final name = _shortName((item['item_description'] as String?) ?? '');
+          final name =
+          _shortName((item['item_description'] as String?) ?? '');
           final qty = _toInt(item['quantity']);
           final pct = (qty / threshold).clamp(0.0, 1.0);
 
@@ -1185,6 +1701,10 @@ class _LowStockAlerts extends StatelessWidget {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Shared card wrapper
+// ═══════════════════════════════════════════════════════════════════════════
+
 class _Card extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -1212,7 +1732,8 @@ class _Card extends StatelessWidget {
         Row(
           children: [
             if (titleAccentColor != null) ...[
-              Icon(Icons.warning_amber_rounded, color: titleAccentColor, size: 16),
+              Icon(Icons.warning_amber_rounded,
+                  color: titleAccentColor, size: 16),
               const SizedBox(width: 6),
             ],
             Text(
@@ -1235,6 +1756,10 @@ class _Card extends StatelessWidget {
     ),
   );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Sidebar item
+// ═══════════════════════════════════════════════════════════════════════════
 
 class _SidebarItem extends StatelessWidget {
   final IconData icon;
@@ -1273,7 +1798,8 @@ class _SidebarItem extends StatelessWidget {
               label,
               style: TextStyle(
                 color: selected ? _blue : _textLo,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                fontWeight:
+                selected ? FontWeight.w600 : FontWeight.normal,
                 fontSize: 14,
               ),
             ),
@@ -1283,6 +1809,10 @@ class _SidebarItem extends StatelessWidget {
     ),
   );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Error view
+// ═══════════════════════════════════════════════════════════════════════════
 
 class _ErrorView extends StatelessWidget {
   final String message;

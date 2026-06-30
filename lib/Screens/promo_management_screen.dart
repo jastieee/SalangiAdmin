@@ -927,19 +927,25 @@ class _PromoManagementScreenState extends State<PromoManagementScreen> {
                           child: DropdownButtonFormField<int>(
                             value: _safeDropdownValue(supplierId, _suppliers.map((s) => _toInt(s['supplier_id'])).toList()),
                             dropdownColor: _surface,
+                            isExpanded: true, // ← add this
                             style: TextStyle(color: _textHi),
                             decoration: _inputDecoration('Supplier', Icons.business_rounded),
                             items: [
                               const DropdownMenuItem(value: 0, child: Text('No Supplier')),
-                              ..._suppliers.map((s) => DropdownMenuItem(value: _toInt(s['supplier_id']), child: Text(s['supplier_name']?.toString() ?? 'Supplier'))),
+                              ..._suppliers.map((s) => DropdownMenuItem(
+                                value: _toInt(s['supplier_id']),
+                                child: Text(
+                                  s['supplier_name']?.toString() ?? 'Supplier',
+                                  overflow: TextOverflow.ellipsis, // ← add this
+                                ),
+                              )),
                             ],
                             onChanged: readOnly ? null : (v) {
                               setModalState(() { supplierId = v ?? 0; deliveryId = 0; deliveriesForSupplier = []; items.clear(); });
                               if (supplierId > 0) refreshDeliveries(supplierId, setModalState);
                             },
                           ),
-                        ),
-                        // Delivery
+                        ),                        // Delivery
                         SizedBox(
                           width: 280,
                           child: DropdownButtonFormField<int>(

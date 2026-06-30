@@ -50,6 +50,12 @@ class _InventoryScreenState extends State<InventoryScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs = TabController(length: 2, vsync: this);
 
+  bool _warehouseLowStockOnly = false;
+  bool _storeLowStockOnly = false;
+  String _warehouseSortBy = '';   // 'name' | 'qty' | 'date' | ''
+  String _warehouseSortDir = 'asc'; // 'asc' | 'desc'
+  String _storeSortBy = '';
+  String _storeSortDir = 'asc';
   bool _loading = true;
   String? _error;
 
@@ -185,31 +191,69 @@ class _InventoryScreenState extends State<InventoryScreen>
           [];
 
   // ── Filtered ────────────────────────────────────────────────────────────
-  List<Map<String, dynamic>> get _filteredWarehouse => _warehouse.where((r) {
-    final q = _searchWarehouse.toLowerCase();
+  List<Map<String, dynamic>> get _filteredWarehouse {
+    var list = _warehouse.where((r) {
+      final q = _searchWarehouse.toLowerCase();
+      if (_selectedWarehouseId != null &&
+          toInt(r['warehouse_id']) != _selectedWarehouseId) return false;
+      if (_warehouseLowStockOnly && toInt(r['quantity']) > 10) return false;
+      return q.isEmpty ||
+          toStr(r['product_code']).toLowerCase().contains(q) ||
+          toStr(r['item_description']).toLowerCase().contains(q);
+    }).toList();
 
-    if (_selectedWarehouseId != null &&
-        toInt(r['warehouse_id']) != _selectedWarehouseId) {
-      return false;
-    }
+    list.sort((a, b) {
+      int cmp = 0;
+      switch (_warehouseSortBy) {
+        case 'name':
+          cmp = cleanItemName(a['item_description'])
+              .toLowerCase()
+              .compareTo(cleanItemName(b['item_description']).toLowerCase());
+          break;
+        case 'qty':
+          cmp = toInt(a['quantity']).compareTo(toInt(b['quantity']));
+          break;
+        case 'date':
+          cmp = toStr(a['updated_at']).compareTo(toStr(b['updated_at']));
+          break;
+      }
+      return _warehouseSortDir == 'desc' ? -cmp : cmp;
+    });
 
-    return q.isEmpty ||
-        toStr(r['product_code']).toLowerCase().contains(q) ||
-        toStr(r['item_description']).toLowerCase().contains(q);
-  }).toList();
+    return list;
+  }
 
-  List<Map<String, dynamic>> get _filteredStore => _store.where((r) {
-    final q = _searchStore.toLowerCase();
+  List<Map<String, dynamic>> get _filteredStore {
+    var list = _store.where((r) {
+      final q = _searchStore.toLowerCase();
+      if (_selectedStoreId != null &&
+          toInt(r['store_id']) != _selectedStoreId) return false;
+      if (_storeLowStockOnly && toInt(r['quantity_in_stock']) > 10) return false;
+      return q.isEmpty ||
+          toStr(r['product_code']).toLowerCase().contains(q) ||
+          cleanItemName(r['item_description']).toLowerCase().contains(q);
+    }).toList();
 
-    if (_selectedStoreId != null &&
-        toInt(r['store_id']) != _selectedStoreId) {
-      return false;
-    }
+    list.sort((a, b) {
+      int cmp = 0;
+      switch (_storeSortBy) {
+        case 'name':
+          cmp = cleanItemName(a['item_description'])
+              .toLowerCase()
+              .compareTo(cleanItemName(b['item_description']).toLowerCase());
+          break;
+        case 'qty':
+          cmp = toInt(a['quantity_in_stock']).compareTo(toInt(b['quantity_in_stock']));
+          break;
+        case 'date':
+          cmp = toStr(a['as_of_date']).compareTo(toStr(b['as_of_date']));
+          break;
+      }
+      return _storeSortDir == 'desc' ? -cmp : cmp;
+    });
 
-    return q.isEmpty ||
-        toStr(r['product_code']).toLowerCase().contains(q) ||
-        cleanItemName(r['item_description']).toLowerCase().contains(q);
-  }).toList();
+    return list;
+  }
 
   // ── Pagination ──────────────────────────────────────────────────────────
   int get _warehouseTotalPages {
@@ -655,6 +699,18 @@ class _InventoryScreenState extends State<InventoryScreen>
                   onRefresh: _load,
                   selectedWarehouseId: _selectedWarehouseId,
                   warehouses: _warehouses,
+                  lowStockOnly: _warehouseLowStockOnly,
+                  sortBy: _warehouseSortBy,
+                  sortDir: _warehouseSortDir,
+                  onLowStockToggle: () => setState(() {
+                    _warehouseLowStockOnly = !_warehouseLowStockOnly;
+                    _warehousePage = 1;
+                  }),
+                  onSortChanged: (by, dir) => setState(() {
+                    _warehouseSortBy = by;
+                    _warehouseSortDir = dir;
+                    _warehousePage = 1;
+                  }),
                   onWarehouseFilter: (id) => setState(() {
                     _selectedWarehouseId = id;
                     _warehousePage = 1;
@@ -690,6 +746,18 @@ class _InventoryScreenState extends State<InventoryScreen>
                   onRefresh: _load,
                   selectedStoreId: _selectedStoreId,
                   stores: _stores,
+                  lowStockOnly: _storeLowStockOnly,
+                  sortBy: _storeSortBy,
+                  sortDir: _storeSortDir,
+                  onLowStockToggle: () => setState(() {
+                    _storeLowStockOnly = !_storeLowStockOnly;
+                    _storePage = 1;
+                  }),
+                  onSortChanged: (by, dir) => setState(() {
+                    _storeSortBy = by;
+                    _storeSortDir = dir;
+                    _storePage = 1;
+                  }),
                   onStoreFilter: (id) => setState(() {
                     _selectedStoreId = id;
                     _storePage = 1;
@@ -889,6 +957,12 @@ class _WarehouseTab extends StatelessWidget {
   final List<Map<String, dynamic>> warehouses;
   final ValueChanged<int?> onWarehouseFilter;
 
+  final bool lowStockOnly;
+  final VoidCallback onLowStockToggle;
+  final String sortBy;
+  final String sortDir;
+  final void Function(String by, String dir) onSortChanged;
+
   final int filteredCount;
   final int currentPage;
   final int totalPages;
@@ -919,6 +993,11 @@ class _WarehouseTab extends StatelessWidget {
     required this.onPageTap,
     required this.visiblePages,
     this.selectedWarehouseId,
+    required this.lowStockOnly,
+    required this.onLowStockToggle,  // ← ADD this line
+    required this.sortBy,
+    required this.sortDir,
+    required this.onSortChanged,
     this.warehouses = const [],
   });
 
@@ -1034,14 +1113,62 @@ class _WarehouseTab extends StatelessWidget {
 
   Widget _buildStats() => Padding(
     padding: const EdgeInsets.fromLTRB(24, 14, 24, 4),
-    child: Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    child: Row(
       children: [
-        _MiniStat(label: 'SKUs', value: '${allItems.length}', color: _teal),
-        _MiniStat(label: 'Total Units', value: '$_totalUnits', color: _blue),
-        if (_lowStock > 0)
-          _MiniStat(label: 'Low Stock', value: '$_lowStock', color: _red),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _MiniStat(label: 'SKUs', value: '${allItems.length}', color: _teal),
+            _MiniStat(label: 'Total Units', value: '$_totalUnits', color: _blue),
+            if (_lowStock > 0)
+              GestureDetector(
+                onTap: onLowStockToggle,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: lowStockOnly
+                        ? _red.withOpacity(0.18)
+                        : _surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: lowStockOnly
+                          ? _red.withOpacity(0.6)
+                          : _border,
+                      width: lowStockOnly ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          color: _red, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$_lowStock Low Stock',
+                        style: TextStyle(
+                          color: _red,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (lowStockOnly) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.close_rounded, color: _red, size: 13),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const Spacer(),
+        // Sort by Qty toggle
+        _SortControl(
+          sortBy: sortBy,
+          sortDir: sortDir,
+          onChanged: onSortChanged,
+        ),
       ],
     ),
   );
@@ -1205,6 +1332,13 @@ class _StoreTab extends StatelessWidget {
   final List<Map<String, dynamic>> stores;
   final ValueChanged<int?> onStoreFilter;
 
+  final bool lowStockOnly;
+  final VoidCallback onLowStockToggle;
+
+  // ADD:
+  final String sortBy;
+  final String sortDir;
+  final void Function(String by, String dir) onSortChanged;
   final int filteredCount;
   final int currentPage;
   final int totalPages;
@@ -1235,6 +1369,12 @@ class _StoreTab extends StatelessWidget {
     required this.onPageTap,
     required this.visiblePages,
     this.selectedStoreId,
+    required this.lowStockOnly,
+    required this.onLowStockToggle,  // ← ADD this line
+
+    required this.sortBy,
+    required this.sortDir,
+    required this.onSortChanged,
     this.stores = const [],
   });
 
@@ -1339,7 +1479,8 @@ class _StoreTab extends StatelessWidget {
                   (s) => DropdownMenuItem(
                 value: toInt(s['store_id']),
                 child: Text(
-                  '${toStr(s['store_name'])} - ${toStr(s['store_address'])}',
+                  '${toStr(s['store_name'])} - ${toStr(s['store_address'] ?? s['address'])}',
+
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -1353,14 +1494,61 @@ class _StoreTab extends StatelessWidget {
 
   Widget _buildStats() => Padding(
     padding: const EdgeInsets.fromLTRB(24, 14, 24, 4),
-    child: Wrap(
-      spacing: 8,
-      runSpacing: 8,
+    child: Row(
       children: [
-        _MiniStat(label: 'SKUs', value: '${allItems.length}', color: _green),
-        _MiniStat(label: 'Total Units', value: '$_totalUnits', color: _blue),
-        if (_lowStock > 0)
-          _MiniStat(label: 'Low Stock', value: '$_lowStock', color: _red),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _MiniStat(label: 'SKUs', value: '${allItems.length}', color: _green),
+            _MiniStat(label: 'Total Units', value: '$_totalUnits', color: _blue),
+            if (_lowStock > 0)
+              GestureDetector(
+                onTap: onLowStockToggle,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: lowStockOnly
+                        ? _red.withOpacity(0.18)
+                        : _surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: lowStockOnly
+                          ? _red.withOpacity(0.6)
+                          : _border,
+                      width: lowStockOnly ? 1.5 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.warning_amber_rounded,
+                          color: _red, size: 14),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$_lowStock Low Stock',
+                        style: TextStyle(
+                          color: _red,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (lowStockOnly) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.close_rounded, color: _red, size: 13),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const Spacer(),
+        _SortControl(
+          sortBy: sortBy,
+          sortDir: sortDir,
+          onChanged: onSortChanged,
+        ),
       ],
     ),
   );
@@ -1548,8 +1736,8 @@ class _WhTableRow extends StatelessWidget {
           Expanded(
             flex: 5,
             child: Text(
-                cleanItemName(item['item_description']),
-                style: TextStyle(color: _textHi, fontSize: 13),
+              cleanItemName(item['item_description']),
+              style: TextStyle(color: _textHi, fontSize: 13),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -1777,7 +1965,7 @@ class _StTableRow extends StatelessWidget {
           Expanded(
             flex: 5,
             child: Text(
-                cleanItemName(item['item_description']),
+              cleanItemName(item['item_description']),
               style: TextStyle(color: _textHi, fontSize: 13),
               overflow: TextOverflow.ellipsis,
             ),
@@ -2917,4 +3105,145 @@ class _ErrorView extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _SortControl extends StatelessWidget {
+  final String sortBy;
+  final String sortDir;
+  final void Function(String by, String dir) onChanged;
+
+  const _SortControl({
+    required this.sortBy,
+    required this.sortDir,
+    required this.onChanged,
+  });
+
+  static const _options = [
+    {'value': 'name', 'label': 'Name',     'icon': Icons.sort_by_alpha_rounded},
+    {'value': 'qty',  'label': 'Quantity', 'icon': Icons.format_list_numbered_rounded},
+    {'value': 'date', 'label': 'Date',     'icon': Icons.calendar_today_rounded},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Sort by dropdown
+        Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: sortBy.isNotEmpty
+                ? _blue.withOpacity(0.10)
+                : _surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: sortBy.isNotEmpty
+                  ? _blue.withOpacity(0.4)
+                  : _border,
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: sortBy.isEmpty ? null : sortBy,
+              hint: Row(
+                children: [
+                  Icon(Icons.sort_rounded, color: _textLo, size: 15),
+                  const SizedBox(width: 6),
+                  Text('Sort by',
+                      style: TextStyle(color: _textLo, fontSize: 12)),
+                ],
+              ),
+              dropdownColor: _surface,
+              icon: Icon(Icons.keyboard_arrow_down_rounded,
+                  color: _textLo, size: 16),
+              style: TextStyle(color: _textHi, fontSize: 12),
+              items: [
+                DropdownMenuItem<String>(
+                  value: '',
+                  child: Row(
+                    children: [
+                      Icon(Icons.clear_rounded, color: _red, size: 15),
+                      const SizedBox(width: 8),
+                      Text('None',
+                          style: TextStyle(color: _red, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                ..._options.map((opt) {
+                  final val = opt['value'] as String;
+                  final lbl = opt['label'] as String;
+                  final ico = opt['icon'] as IconData;
+                  final isActive = sortBy == val;
+                  return DropdownMenuItem<String>(
+                    value: val,
+                    child: Row(
+                      children: [
+                        Icon(ico,
+                            color: isActive ? _blue : _textLo,
+                            size: 15),
+                        const SizedBox(width: 8),
+                        Text(lbl,
+                            style: TextStyle(
+                              color: isActive ? _blue : _textHi,
+                              fontSize: 12,
+                              fontWeight: isActive
+                                  ? FontWeight.w700
+                                  : FontWeight.normal,
+                            )),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+              onChanged: (val) {
+                if (val == null) return;
+                onChanged(val, sortDir);
+              },
+            ),
+          ),
+        ),
+
+        // Only show direction toggle when a sort is active
+        if (sortBy.isNotEmpty) ...[
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () => onChanged(
+                sortBy, sortDir == 'asc' ? 'desc' : 'asc'),
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: _blue.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _blue.withOpacity(0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    sortDir == 'asc'
+                        ? Icons.arrow_upward_rounded
+                        : Icons.arrow_downward_rounded,
+                    color: _blue,
+                    size: 15,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    sortDir == 'asc' ? 'Asc' : 'Desc',
+                    style: TextStyle(
+                      color: _blue,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 }

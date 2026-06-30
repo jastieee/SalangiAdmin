@@ -23,6 +23,10 @@ class ENV {
   static const String SUPPLIERS_URL = "$API_BASE_URL/suppliers.php";
   static const String PROMOS_URL = "$API_BASE_URL/promos.php";
   static const String IMPORT_PRODUCT_UNITS_URL = '$API_BASE_URL/import_product_units.php';
+  static const String ROLES_URL = '$API_BASE_URL/roles.php';
+  static const String CHANGE_PASSWORD_URL = "$API_BASE_URL/change_password.php";
+
+
 
 
 }

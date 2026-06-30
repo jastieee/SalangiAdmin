@@ -3,7 +3,7 @@ description: Admin for Salangi Ko Pu
 
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1+1
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -24,6 +24,11 @@ dependencies:
   excel: ^4.0.6
   csv: ^8.0.0
   share_plus: ^12.0.2
+  permission_handler: ^11.3.1
+  syncfusion_flutter_xlsio: ^29.2.11
+#  syncfusion_officechart: ^29.2.11
+  archive: ^3.6.1
+  upgrader: ^13.5.0
 
 
 dev_dependencies:

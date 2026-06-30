@@ -53,6 +53,23 @@ class AppTheme {
   Color get orange  => isDark ? const Color(0xFFFFA463) : AppColors.orange;
   Color get cyan    => isDark ? const Color(0xFF5FD4E8) : AppColors.cyan;
 
+  // ── Chip colors (purple-tinted to match brand palette) ──
+  Color get chipBg => isDark
+      ? const Color(0xFF2A1A45)   // deep purple tint on dark
+      : const Color(0xFFF0EAF9);  // soft lavender on light
+
+  Color get chipBorder => isDark
+      ? const Color(0xFF5A3A8A)   // mid purple border on dark
+      : const Color(0xFFD4BFF0);  // gentle purple border on light
+
+  Color get chipText => isDark
+      ? const Color(0xFFCAAFEE)   // light purple text on dark
+      : const Color(0xFF6A3FA0);  // brand purple text on light
+
+  Color get chipDanger => isDark
+      ? const Color(0xFFFF6B6B)   // reuses theme red on dark
+      : const Color(0xFFD93025);  // reuses theme red on light
+
   Color get rowAlt => isDark
       ? const Color(0x14FFFFFF)
       : const Color(0xFFFBF8FF);

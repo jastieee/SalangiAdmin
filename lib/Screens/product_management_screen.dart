@@ -37,6 +37,9 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs = TabController(length: 2, vsync: this);
 
+  String _sortBy = '';
+  String _sortDir = 'asc';
+
   // ── Products tab state ──────────────────────────────────────────────────
   bool _loading = true;
   String? _error;
@@ -145,14 +148,16 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
   Future<void> _exportBarcodes() async {
     try {
       final buffer = StringBuffer();
-      buffer.writeln('barcode,item_description');
+      buffer.writeln('barcode,item_description,unit_price');
+
 
       for (final p in _products) {
         final barcode = _toStr(p['product_code']);
         final desc = cleanItemName(p['item_description'])
             .replaceAll('"', '""');
         // ← Force Excel to treat barcode as text by prefixing with tab or using ="..."
-        buffer.writeln('="$barcode","$desc"');
+        final price = _toDouble(p['unit_price']);
+        buffer.writeln('="$barcode","$desc",${price.toStringAsFixed(2)}');
       }
 
 
@@ -254,14 +259,37 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
   }
 
   // ── Products: filter + page ─────────────────────────────────────────────
+  // FIND and REPLACE the entire _filtered getter:
   List<Map<String, dynamic>> get _filtered {
     final q = _searchQuery.trim().toLowerCase();
-    return _products.where((p) {
+    var list = _products.where((p) {
       if (q.isEmpty) return true;
       return _toStr(p['product_code']).toLowerCase().contains(q) ||
           _toStr(p['uom']).toLowerCase().contains(q) ||
           _toStr(p['item_description']).toLowerCase().contains(q);
     }).toList();
+
+    list.sort((a, b) {
+      int cmp = 0;
+      switch (_sortBy) {
+        case 'name':
+          cmp = cleanItemName(a['item_description'])
+              .toLowerCase()
+              .compareTo(cleanItemName(b['item_description']).toLowerCase());
+          break;
+        case 'price':
+          cmp = _toDouble(a['unit_price']).compareTo(_toDouble(b['unit_price']));
+          break;
+        case 'code':
+          cmp = _toStr(a['product_code'])
+              .toLowerCase()
+              .compareTo(_toStr(b['product_code']).toLowerCase());
+          break;
+      }
+      return _sortDir == 'desc' ? -cmp : cmp;
+    });
+
+    return list;
   }
 
   int get _totalPages {
@@ -838,20 +866,51 @@ class _ProductManagementScreenState extends State<ProductManagementScreen>
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+      child: Row(
         children: [
-          _MiniStat(label: 'Total Products', value: '$total', color: _blue),
-          _MiniStat(label: 'Filtered', value: '$filtered', color: _teal),
-          _MiniStat(
-              label: 'Showing',
-              value: '$showing / $_itemsPerPage',
-              color: _amber),
-          _MiniStat(
-              label: 'Page',
-              value: '$_currentPage / $_totalPages',
-              color: _green),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MiniStat(label: 'Total Products', value: '$total', color: _blue),
+              _MiniStat(label: 'Filtered', value: '$filtered', color: _teal),
+              _MiniStat(
+                  label: 'Showing',
+                  value: '$showing / $_itemsPerPage',
+                  color: _amber),
+              _MiniStat(
+                  label: 'Page',
+                  value: '$_currentPage / $_totalPages',
+                  color: _green),
+            ],
+          ),
+          const Spacer(),
+          _SortControl(
+            sortBy: _sortBy,
+            sortDir: _sortDir,
+            options: const [
+              {
+                'value': 'name',
+                'label': 'Name',
+                'icon': Icons.sort_by_alpha_rounded,
+              },
+              {
+                'value': 'code',
+                'label': 'Code',
+                'icon': Icons.qr_code_rounded,
+              },
+              {
+                'value': 'price',
+                'label': 'Price',
+                'icon': Icons.price_change_rounded,
+              },
+            ],
+            onChanged: (by, dir) => setState(() {
+              _sortBy = by;
+              _sortDir = dir;
+              _currentPage = 1;
+            }),
+          ),
         ],
       ),
     );
@@ -2951,6 +3010,148 @@ class _ErrorView extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SortControl extends StatelessWidget {
+  final String sortBy;
+  final String sortDir;
+  final void Function(String by, String dir) onChanged;
+  final List<Map<String, Object>> options;
+
+  const _SortControl({
+    required this.sortBy,
+    required this.sortDir,
+    required this.onChanged,
+    this.options = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          decoration: BoxDecoration(
+            color: sortBy.isNotEmpty ? _blue.withOpacity(0.10) : _surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: sortBy.isNotEmpty ? _blue.withOpacity(0.4) : _border,
+            ),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: sortBy.isEmpty ? null : sortBy,
+              hint: Row(
+                children: [
+                  Icon(Icons.sort_rounded, color: _textLo, size: 15),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Sort by',
+                    style: TextStyle(color: _textLo, fontSize: 12),
+                  ),
+                ],
+              ),
+              dropdownColor: _surface,
+              icon: Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: _textLo,
+                size: 16,
+              ),
+              style: TextStyle(color: _textHi, fontSize: 12),
+              items: [
+                DropdownMenuItem<String>(
+                  value: '',
+                  child: Row(
+                    children: [
+                      Icon(Icons.clear_rounded, color: _red, size: 15),
+                      const SizedBox(width: 8),
+                      Text(
+                        'None',
+                        style: TextStyle(color: _red, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                ...options.map((opt) {
+                  final val = opt['value'] as String;
+                  final lbl = opt['label'] as String;
+                  final ico = opt['icon'] as IconData;
+                  final isActive = sortBy == val;
+                  return DropdownMenuItem<String>(
+                    value: val,
+                    child: Row(
+                      children: [
+                        Icon(
+                          ico,
+                          color: isActive ? _blue : _textLo,
+                          size: 15,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          lbl,
+                          style: TextStyle(
+                            color: isActive ? _blue : _textHi,
+                            fontSize: 12,
+                            fontWeight: isActive
+                                ? FontWeight.w700
+                                : FontWeight.normal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
+              onChanged: (val) {
+                if (val == null) return;
+                onChanged(val, sortDir);
+              },
+            ),
+          ),
+        ),
+
+        if (sortBy.isNotEmpty) ...[
+          const SizedBox(width: 6),
+          GestureDetector(
+            onTap: () =>
+                onChanged(sortBy, sortDir == 'asc' ? 'desc' : 'asc'),
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: _blue.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: _blue.withOpacity(0.4)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    sortDir == 'asc'
+                        ? Icons.arrow_upward_rounded
+                        : Icons.arrow_downward_rounded,
+                    color: _blue,
+                    size: 15,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    sortDir == 'asc' ? 'Asc' : 'Desc',
+                    style: TextStyle(
+                      color: _blue,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

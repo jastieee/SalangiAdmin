@@ -163,23 +163,40 @@ class DBService {
     String? email,
     int? storeId,
     int? warehouseId,
+    List<int>? assignedStoreIds,
+    List<int>? assignedWarehouseIds,
     required int roleId,
     required List<Map<String, dynamic>> permissions,
     int performedBy = 0,
-  }) =>
-      _request('POST', ENV.USERS_URL, {
-        'username': username,
-        'password': password,
-        'full_name': fullName,
-        'email': email ?? '',
-        'role_id': roleId,
-        'store_id': storeId,
-        'warehouse_id': warehouseId,
-        'assigned_store_ids': storeId == null ? [] : [storeId],
-        'assigned_warehouse_ids': warehouseId == null ? [] : [warehouseId],
-        'permissions': permissions,
-        'performed_by': performedBy,
-      });
+  }) {
+    // Backwards-compat: if caller only passed the legacy single IDs,
+    // wrap them into a 1-element list.
+    final stores = assignedStoreIds ??
+        (storeId == null ? <int>[] : [storeId]);
+    final warehouses = assignedWarehouseIds ??
+        (warehouseId == null ? <int>[] : [warehouseId]);
+
+    // Primary store/warehouse for the legacy `users.store_id` / `users.warehouse_id`
+    // columns: prefer the explicit single ID, otherwise fall back to the first
+    // entry of the multi-select list.
+    final primaryStore = storeId ?? (stores.isEmpty ? null : stores.first);
+    final primaryWarehouse =
+        warehouseId ?? (warehouses.isEmpty ? null : warehouses.first);
+
+    return _request('POST', ENV.USERS_URL, {
+      'username': username,
+      'password': password,
+      'full_name': fullName,
+      'email': email ?? '',
+      'role_id': roleId,
+      'store_id': primaryStore,
+      'warehouse_id': primaryWarehouse,
+      'assigned_store_ids': stores,
+      'assigned_warehouse_ids': warehouses,
+      'permissions': permissions,
+      'performed_by': performedBy,
+    });
+  }
 
   Future<DBResult> updateUser({
     required int userId,
@@ -188,22 +205,33 @@ class DBService {
     int? roleId,
     int? storeId,
     int? warehouseId,
+    List<int>? assignedStoreIds,
+    List<int>? assignedWarehouseIds,
     required List<Map<String, dynamic>> permissions,
     int performedBy = 0,
-  }) =>
-      _request('PUT', ENV.USERS_URL, {
-        'user_id': userId,
-        'full_name': fullName,
-        'email': email ?? '',
-        'role_id': roleId,
-        'store_id': storeId,
-        'warehouse_id': warehouseId,
-        'assigned_store_ids': storeId == null ? [] : [storeId],
-        'assigned_warehouse_ids': warehouseId == null ? [] : [warehouseId],
-        'permissions': permissions,
-        'performed_by': performedBy,
-      });
+  }) {
+    final stores = assignedStoreIds ??
+        (storeId == null ? <int>[] : [storeId]);
+    final warehouses = assignedWarehouseIds ??
+        (warehouseId == null ? <int>[] : [warehouseId]);
 
+    final primaryStore = storeId ?? (stores.isEmpty ? null : stores.first);
+    final primaryWarehouse =
+        warehouseId ?? (warehouses.isEmpty ? null : warehouses.first);
+
+    return _request('PUT', ENV.USERS_URL, {
+      'user_id': userId,
+      'full_name': fullName,
+      'email': email ?? '',
+      'role_id': roleId,
+      'store_id': primaryStore,
+      'warehouse_id': primaryWarehouse,
+      'assigned_store_ids': stores,
+      'assigned_warehouse_ids': warehouses,
+      'permissions': permissions,
+      'performed_by': performedBy,
+    });
+  }
 
   /// Activate or deactivate a user
   Future<DBResult> toggleUserActive({
@@ -702,6 +730,59 @@ class DBService {
     });
   }
 
+  // ── ROLES ────────────────────────────────────────────────────────────────
+
+  Future<DBResult> fetchRoles() async {
+    try {
+      final response = await http
+          .get(Uri.parse(ENV.ROLES_URL))
+          .timeout(const Duration(seconds: 30));
+
+      final ct = response.headers['content-type'] ?? '';
+      if (!ct.contains('application/json')) {
+        return DBResult(
+          success: false,
+          message:
+          'Roles: unexpected server response (HTTP ${response.statusCode}).',
+        );
+      }
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      return DBResult(
+        success: decoded['success'] == true,
+        message: decoded['message'] ?? '',
+        data: decoded,
+      );
+    } on http.ClientException catch (e) {
+      return DBResult(
+          success: false, message: 'Cannot reach roles API. (${e.message})');
+    } on FormatException {
+      return DBResult(success: false, message: 'Roles returned invalid data.');
+    } catch (e) {
+      return DBResult(success: false, message: 'Roles error: $e');
+    }
+  }
+
+  Future<DBResult> saveRole({
+    int? id,
+    required String name,
+    required String description,
+  }) {
+    final body = <String, dynamic>{
+      'role_name': name,
+      'description': description,
+      if (id != null) 'role_id': id,
+    };
+
+    return id == null
+        ? _post(ENV.ROLES_URL, body)
+        : _request('PUT', ENV.ROLES_URL, body);
+  }
+
+  Future<DBResult> deleteRole({required int id}) {
+    return _request('DELETE', ENV.ROLES_URL, {'role_id': id});
+  }
+
   // ── PROMO MANAGEMENT ─────────────────────────────────────────────────────
 
   Future<DBResult> fetchPromos({
@@ -940,5 +1021,19 @@ class DBService {
       return DBResult(success: false, message: 'Assign pending error: $e');
     }
   }
+
+  Future<DBResult> changePassword({
+    required int userId,
+    required String currentPassword,
+    required String newPassword,
+  }) =>
+      _post(ENV.CHANGE_PASSWORD_URL, {
+        'user_id': userId,
+        'current_password': currentPassword,
+        'new_password': newPassword,
+      });
+
+
+
 }
 

@@ -10,6 +10,8 @@ import 'package:open_file/open_file.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:excel/excel.dart' as excel;
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 AppTheme get _t => themeNotifier.theme;
 Color get _bg => _t.bg;
@@ -158,13 +160,66 @@ class _DeliveriesScreenState extends State<DeliveriesScreen> {
   }
 
   Future<Directory> _reportsDir() async {
-    final userProfile = Platform.environment['USERPROFILE'] ?? 'C:/Users/Default';
-    final dir = Directory('$userProfile/Documents/PO Reports');
+    const folderName = 'Deliveries';
 
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
+    if (kIsWeb) {
+      throw Exception('Export not supported on web.');
     }
 
+    // Windows
+    if (Platform.isWindows) {
+      final userProfile =
+          Platform.environment['USERPROFILE'] ?? 'C:/Users/Default';
+      final dir = Directory('$userProfile/Documents/Salangi/$folderName');
+      if (!await dir.exists()) await dir.create(recursive: true);
+      return dir;
+    }
+
+    // macOS / Linux
+    if (Platform.isMacOS || Platform.isLinux) {
+      final home = Platform.environment['HOME'] ?? '';
+      final dir = Directory('$home/Documents/Salangi/$folderName');
+      if (!await dir.exists()) await dir.create(recursive: true);
+      return dir;
+    }
+
+    // Android — try public Documents first, fall back to app-scoped storage
+    if (Platform.isAndroid) {
+      await Permission.storage.request();
+
+      try {
+        final publicDir = Directory(
+          '/storage/emulated/0/Documents/Salangi/$folderName',
+        );
+        if (!await publicDir.exists()) {
+          await publicDir.create(recursive: true);
+        }
+        final probe = File('${publicDir.path}/.probe');
+        await probe.writeAsString('ok');
+        await probe.delete();
+        return publicDir;
+      } catch (_) {
+        final ext = await getExternalStorageDirectory();
+        final base =
+            ext?.path ?? (await getApplicationDocumentsDirectory()).path;
+        final dir = Directory('$base/Salangi/$folderName');
+        if (!await dir.exists()) await dir.create(recursive: true);
+        return dir;
+      }
+    }
+
+    // iOS
+    if (Platform.isIOS) {
+      final docs = await getApplicationDocumentsDirectory();
+      final dir = Directory('${docs.path}/Salangi/$folderName');
+      if (!await dir.exists()) await dir.create(recursive: true);
+      return dir;
+    }
+
+    // Fallback for any other platform
+    final docs = await getApplicationDocumentsDirectory();
+    final dir = Directory('${docs.path}/Salangi/$folderName');
+    if (!await dir.exists()) await dir.create(recursive: true);
     return dir;
   }
 
